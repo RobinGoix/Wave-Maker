@@ -4,32 +4,32 @@ This code solves the Boussinesq System derived by Peregrine for a seabed of cons
 """
 from dolfin import *
 
-Ny = 32
-Nx = 64
+Ny = 14
+Nx = 52
 
-"""
-x0 = -5
-x1 = 10
-y0 = -2
-y1 = 2
-Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
-"""
+x0 = -2
+x1 = 4
+y0 = -1
+y1 = 1
+Th = RectangleMesh(x0,y0,x1,y1,Nx*(x1-x0),Ny*(y1-y0))
+
 
 Th = UnitSquareMesh(Nx,Ny)
 
 #Define some Parameters
 save = True
-dt = Constant(0.05) #Time step
+dt = Constant(0.001) #Time step
 t = 0.0	#Time initialization
-end = 10.0 #Final time
+end1 = 0.4 #Final time for the object
+end = 1.0 #Final time
 bmarg = 1.e-3 + DOLFIN_EPS
 
 g = 9.8 #Gravity [m.s^(-2)]
-h0 = 1 #depth  [m]
-a0 = 0.3 #height of the moving object  [m]
-bh = 0.1 #width of the moving object  [m]
-xh = 0.3 #start position of the moving object  [m]
-vh = 0.2 #speed of the moving object  [m.s^(-1)]
+h0 = 2 #depth  [m]
+a0 = 0.5 #height of the moving object  [m]
+bh = 0.05 #width of the moving object  [m]
+xh = 0.2 #start position of the moving object  [m]
+vh = 1 #speed of the moving object  [m.s^(-1)]
 
 #Define the profil of the moving seabed
 h_prev = Expression("h0-a0*exp(-(x[0]-xh+vh*dt)*(x[0]-xh+vh*dt)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0,vh=vh,dt=dt)
@@ -84,11 +84,13 @@ u,eta = as_vector((w[0],w[1])),w[2]
 wt = TestFunction(E)
 v,xi = as_vector((wt[0],wt[1])),wt[2]
 
+h_tt = (h_prev-2*h+h_next)/(dt*dt)
+
 F = 1/dt*inner(u-u_prev,v)*dx + inner(grad(u)*u,v)*dx - g*div(v)*eta*dx
 
 F += (1./2)*(1/dt)*div(v)*div(h*(u-u_prev))*h*dx + (1/2)*1/dt*inner(v,grad(h))*div(h*(u-u_prev))*dx \
      - (1/6)*1/dt*div(v)*div(u-u_prev)*h*h*dx - (1/6)*1/dt*inner(v,grad(h))*2*h*div(u-u_prev)*dx \
-     +(1/2)*1/(dt*dt)*div(v)*h*(h_prev-2*h+h_next)*dx+(1/2)*1/(dt*dt)*inner(v,grad(h))*(h_prev-2*h+h_next)*dx
+     +(1/2)*div(v)*h*h_tt*dx+(1/2)*inner(v,grad(h))*h_tt*dx
 
 F += 1/dt*(eta-eta_prev)*xi*dx +1/dt*(h-h_prev)*xi*dx - inner(u,grad(xi))*(eta+h)*dx 
       
@@ -98,8 +100,7 @@ w_ = Function(E)
 F = action(F, w_)	
 
 ###############################ITERATIONS##########################
-while (t <= end):
-  #plot(h-h_prev, title = "Seabed")
+while (t <= end1):
   solve(F==0, w_, bc) #Solve the variational form
   u_prev.assign(u_) #u_prev = u_
   eta_prev.assign(eta_) #eta_prev = eta_
@@ -108,7 +109,25 @@ while (t <= end):
   plot(h,rescale=False, title = "Seabed")
   plot(eta_,rescale=True, title = "Free Surface")
   t += float(dt)
+  print(t)
   h_new = Expression("h0-a0*exp(-(x[0]-xh-(t+dt)*vh)*(x[0]-xh-(t+dt)*vh)/(bh*bh))",h0=h0,xh=xh,t=t,vh=vh,bh=bh,a0=a0,dt=dt)
+  h_new = interpolate(h_new,H)
+  h_next.assign(h_new)
+  if (save==True):
+    fsfile << eta_ #Save heigth
+    hfile << h_prev
+      
+while (t > end1 and t <= end):
+  solve(F==0, w_, bc) #Solve the variational form
+  u_prev.assign(u_) #u_prev = u_
+  eta_prev.assign(eta_) #eta_prev = eta_
+  h_prev.assign(h)
+  h.assign(h_next)
+  plot(h,rescale=False, title = "Seabed")
+  plot(eta_,rescale=True, title = "Free Surface")
+  t += float(dt)
+  print(t)
+  h_new = Expression("h0-a0*exp(-(x[0]-xh-(end1)*vh)*(x[0]-xh-(end1)*vh)/(bh*bh))",h0=h0,xh=xh,t=t,vh=vh,bh=bh,a0=a0,dt=dt,end1=end1)
   h_new = interpolate(h_new,H)
   h_next.assign(h_new)
   if (save==True):
