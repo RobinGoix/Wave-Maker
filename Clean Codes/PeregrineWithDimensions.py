@@ -5,7 +5,7 @@ This code solves the Boussinesq System derived by Peregrine for a seabed of cons
 from dolfin import *
 
 Ny = 32
-Nx = 128
+Nx = 64
 
 """
 x0 = -5
@@ -19,17 +19,17 @@ Th = UnitSquareMesh(Nx,Ny)
 
 #Define some Parameters
 save = True
-dt = Constant(0.001) #Time step
+dt = Constant(0.05) #Time step
 t = 0.0	#Time initialization
-end = 1.0 #Final time
+end = 10.0 #Final time
 bmarg = 1.e-3 + DOLFIN_EPS
 
 g = 9.8 #Gravity [m.s^(-2)]
 h0 = 1 #depth  [m]
 a0 = 0.3 #height of the moving object  [m]
-bh = 0.05 #width of the moving object  [m]
+bh = 0.1 #width of the moving object  [m]
 xh = 0.3 #start position of the moving object  [m]
-vh = 2 #speed of the moving object  [m.s^(-1)]
+vh = 0.2 #speed of the moving object  [m.s^(-1)]
 
 #Define the profil of the moving seabed
 h_prev = Expression("h0-a0*exp(-(x[0]-xh+vh*dt)*(x[0]-xh+vh*dt)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0,vh=vh,dt=dt)
