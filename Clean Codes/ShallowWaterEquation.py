@@ -15,8 +15,9 @@ end = 0.5 #Final time
 bmarg = 1.e-3 + DOLFIN_EPS
 #h = Constant(2) #bottom profil
 h = Expression("2-2*x[0]")
-
-#ufile = File("SWECircle.pvd") #To save data in a file
+save = False
+if (save == True):
+  ufile = File("home/robin/Documents/BCAM/FEniCS_Files/Simulations/SWE.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -89,5 +90,6 @@ while (t <= end):
   eta_prev.assign(eta_) #p_prev = p_
   plot(eta_,rescale=False)
   t += float(dt)
-  #ufile << eta_ #Save heigth
+  if (save == True):
+    ufile << eta_ #Save heigth
       

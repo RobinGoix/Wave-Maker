@@ -31,8 +31,8 @@ h_next = Expression("h0-a0*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))*(tanh(1
 
 #Saving parameters
 if (save==True):
-  fsfile = File("PeregrineFS.pvd") #To save data in a file
-  hfile = File("PeregrineBHbis.pvd") #To save data in a file
+  fsfile = File("home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineFS.pvd") #To save data in a file
+  hfile = File("home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineBHbis.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
