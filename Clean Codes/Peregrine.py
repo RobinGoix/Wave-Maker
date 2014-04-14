@@ -20,7 +20,7 @@ a0 = 0.2 #height of the moving object
 bh = 0.1 #width of the moving object
 xh = 0.3 #start position of the moving object
 vh = 0.005 #speed of the moving object
-lambda0 = 0.3 #typical wavelength
+lambda0 = 3 #typical wavelength
 epsilon = a0/h0
 sigma = h0/lambda0
 
@@ -31,8 +31,8 @@ h_next = Expression("h0-a0*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))*(tanh(1
 
 #Saving parameters
 if (save==True):
-  fsfile = File("home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineFS.pvd") #To save data in a file
-  hfile = File("home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineBHbis.pvd") #To save data in a file
+  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineFS.pvd") #To save data in a file
+  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineBHbis.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -77,11 +77,13 @@ u,eta = as_vector((w[0],w[1])),w[2]
 wt = TestFunction(E)
 v,xi = as_vector((wt[0],wt[1])),wt[2]
 
-F = 1/dt*inner(u-u_prev,v)*dx + epsilon*inner(grad(u)*u,v)*dx - div(v)*eta*dx \
-      + sigma*sigma/2*1/dt*div(v)*div(h*(u-u_prev))*h*dx + sigma*sigma/2*1/dt*inner(v,grad(h))*div(h*(u-u_prev))*dx \
-      - sigma*sigma/6*1/dt*div(v)*div(u-u_prev)*h*h*dx - sigma*sigma/6*1/dt*inner(v,grad(h))*2*h*div(u-u_prev)*dx \
-      +sigma*sigma/2*1/(dt*dt)*div(v)*h*(h_prev-2*h+h_next)*dx+sigma*sigma/2*1/(dt*dt)*inner(v,grad(h))*(h_prev-2*h+h_next)*dx \
-      + 1/dt*(eta-eta_prev)*xi*dx +1/dt*(h-h_prev)*xi*dx - inner(u,grad(xi))*(epsilon*eta+h)*dx 
+F = 1/dt*inner(u-u_prev,v)*dx + epsilon*inner(grad(u)*u,v)*dx - div(v)*eta*dx
+
+F += sigma*sigma/2*1/dt*div(v)*div(h*(u-u_prev))*h*dx + sigma*sigma/2*1/dt*inner(v,grad(h))*div(h*(u-u_prev))*dx \
+     - sigma*sigma/6*1/dt*div(v)*div(u-u_prev)*h*h*dx - sigma*sigma/6*1/dt*inner(v,grad(h))*2*h*div(u-u_prev)*dx \
+     +sigma*sigma/2*1/(dt*dt)*div(v)*h*(h_prev-2*h+h_next)*dx+sigma*sigma/2*1/(dt*dt)*inner(v,grad(h))*(h_prev-2*h+h_next)*dx
+   
+F += 1/dt*(eta-eta_prev)*xi*dx +1/dt*(h-h_prev)*xi*dx - inner(u,grad(xi))*(epsilon*eta+h)*dx 
       
     
 w_ = Function(E)
@@ -90,7 +92,6 @@ F = action(F, w_)
 
 ###############################ITERATIONS##########################
 while (t <= end):
-  #plot(h-h_prev, title = "Seabed")
   solve(F==0, w_, bc) #Solve the variational form
   u_prev.assign(u_) #u_prev = u_
   eta_prev.assign(eta_) #p_prev = p_
@@ -103,6 +104,6 @@ while (t <= end):
   h_new = interpolate(h_new,H)
   h_next.assign(h_new)
   if (save==True):
-    fsfile << eta_ #Save heigth
+    fsfile << eta_ #Save free surface shape
     hfile << h_prev
       

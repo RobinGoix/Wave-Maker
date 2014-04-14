@@ -29,8 +29,8 @@ h_prev = Expression("dh-h0*exp(-(x[0]-xh+vh*dt)*(x[0]-xh+vh*dt)/(bh*bh))",h0=h0,
 h = Expression("dh-h0*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,dh=dh)
 
 if (save == True):
-  fsfile = File("home/robin/Documents/BCAM/FEniCS_Files/Simulations/SWEMBFS.pvd") #To save data in a file
-  hfile = File("home/robin/Documents/BCAM/FEniCS_Files/Simulations/SWEMBH.pvd") #To save data in a file
+  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/SWEMBFS.pvd") #To save data in a file
+  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/SWEMBH.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity

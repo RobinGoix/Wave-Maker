@@ -38,8 +38,8 @@ h_next = Expression("h0-a0*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))",h0=h0,
 
 #Saving parameters
 if (save==True):
-  fsfile = File("home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWDFS.pvd") #To save data in a file
-  hfile = File("home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWDMB.pvd") #To save data in a file
+  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWDFS.pvd") #To save data in a file
+  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWDMB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity

@@ -17,7 +17,7 @@ bmarg = 1.e-3 + DOLFIN_EPS
 h = Expression("2-2*x[0]")
 save = False
 if (save == True):
-  ufile = File("home/robin/Documents/BCAM/FEniCS_Files/Simulations/SWE.pvd") #To save data in a file
+  ufile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/SWE.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
