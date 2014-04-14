@@ -13,8 +13,10 @@ g = Constant([0.0, gy]) # Gravity vector
 dt = Constant(0.01) #Time step
 t = 0.0	#Time initialization
 end = 1000 #Final time
+save = False
 
-#ufile = File("filename.pvd") #To save data in a file
+if (save==True):
+  ufile = File("filename.pvd") #To save data in a file
 
 #Load Mesh
 Th = Mesh("cylinder_2d.xml.gz")
@@ -125,6 +127,7 @@ while (t <= end):
   p_prev.assign(p_) #p_prev = p_
   plot(u_)
   t += float(dt)
-  #ufile << u_ #Save velocity
+  if (save==True):
+    ufile << u_ #Save velocity
   
 ##########################END OF ITERATION##########################
