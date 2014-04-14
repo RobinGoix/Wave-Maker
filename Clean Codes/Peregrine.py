@@ -25,9 +25,9 @@ epsilon = a0/h0
 sigma = h0/lambda0
 
 #Define the profil of the moving seabed
-h_prev = Expression("h0-a0*exp(-(x[0]-xh+vh*dt)*(x[0]-xh+vh*dt)/(bh*bh))*(tanh(10*(x[1]-0.2))+tanh(10*(0.8-x[1])))",h0=h0,xh=xh,t=t,bh=bh,a0=a0,vh=vh,dt=dt)
-h = Expression("h0-a0*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))*(tanh(10*(x[1]-0.2))+tanh(10*(0.8-x[1])))",h0=h0,xh=xh,t=t,bh=bh,a0=a0)
-h_next = Expression("h0-a0*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))*(tanh(10*(x[1]-0.2))+tanh(10*(0.8-x[1])))",h0=h0,xh=xh,t=t,bh=bh,a0=a0,vh=vh,dt=dt)
+h_prev = Expression("h0-a0*exp(-(x[0]-xh+vh*dt)*(x[0]-xh+vh*dt)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0,vh=vh,dt=dt)
+h = Expression("h0-a0*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0)
+h_next = Expression("h0-a0*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0,vh=vh,dt=dt)
 
 #Saving parameters
 if (save==True):
@@ -100,7 +100,7 @@ while (t <= end):
   plot(h,rescale=False, title = "Seabed")
   plot(eta_,rescale=True, title = "Free Surface")
   t += float(dt)
-  h_new = Expression("h0-a0*exp(-(x[0]-xh-(t+dt)*vh)*(x[0]-xh-(t+dt)*vh)/(bh*bh))*(tanh(10*(x[1]-0.2))+tanh(10*(0.8-x[1])))",h0=h0,xh=xh,t=t,vh=vh,bh=bh,a0=a0,dt=dt)
+  h_new = Expression("h0-a0*exp(-(x[0]-xh-(t+dt)*vh)*(x[0]-xh-(t+dt)*vh)/(bh*bh))",h0=h0,xh=xh,t=t,vh=vh,bh=bh,a0=a0,dt=dt)
   h_new = interpolate(h_new,H)
   h_next.assign(h_new)
   if (save==True):
