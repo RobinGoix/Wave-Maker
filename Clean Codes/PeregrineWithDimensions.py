@@ -4,42 +4,45 @@ This code solves the Boussinesq System derived by Peregrine for a seabed of cons
 """
 from dolfin import *
 
-Ny = 14
-Nx = 52
+Ny = 32
+Nx = 128
 
-x0 = -2
-x1 = 4
-y0 = -1
-y1 = 1
-Th = RectangleMesh(x0,y0,x1,y1,Nx*(x1-x0),Ny*(y1-y0))
+x0 = -4
+x1 = 10
+y0 = -2
+y1 = 2
+Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
 
-
-Th = UnitSquareMesh(Nx,Ny)
+#Th = UnitSquareMesh(Nx,Ny)
 
 #Define some Parameters
 save = True
-dt = Constant(0.001) #Time step
+dt = Constant(0.01) #Time step
 t = 0.0	#Time initialization
-end1 = 0.4 #Final time for the object
-end = 1.0 #Final time
+end1 = 2.0 #Final time for the object
+end = 7.0 #Final time
 bmarg = 1.e-3 + DOLFIN_EPS
 
 g = 9.8 #Gravity [m.s^(-2)]
-h0 = 2 #depth  [m]
-a0 = 0.5 #height of the moving object  [m]
-bh = 0.05 #width of the moving object  [m]
-xh = 0.2 #start position of the moving object  [m]
-vh = 1 #speed of the moving object  [m.s^(-1)]
-
+h0 = 1 #depth  [m]
+a0 = 0.3 #height of the moving object  [m]
+bh = 0.7 #width of the moving object  [m]
+xh = 0.0 #start position of the moving object  [m]
+vh = 2 #speed of the moving object  [m.s^(-1)]
+"""
 #Define the profil of the moving seabed
 h_prev = Expression("h0-a0*exp(-(x[0]-xh+vh*dt)*(x[0]-xh+vh*dt)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0,vh=vh,dt=dt)
 h = Expression("h0-a0*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0)
 h_next = Expression("h0-a0*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0,vh=vh,dt=dt)
+"""
+h_prev = Constant(h0)
+h = Constant(h0)
+h_next = Constant(h0)
 
 #Saving parameters
 if (save==True):
-  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWDFS.pvd") #To save data in a file
-  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWDMB.pvd") #To save data in a file
+  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD3/PeregrineWDFS3.pvd") #To save data in a file
+  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD3/PeregrineWDMB3.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -63,7 +66,7 @@ n=FacetNormal(Th) #Normal Vector
 #Initial Conditions
 u_0 = Expression(("0.0", "0.0")) #Initialisation of the velocity
 
-eta_0 = Expression("0.0") #Initialisation of the free surface
+eta_0 = Expression("0.5*(exp(-(x[0])*(x[0])/1))") #Initialisation of the free surface
 
 ###############DEFINITION OF THE WEAK FORMULATION############
 
@@ -104,15 +107,15 @@ while (t <= end1):
   solve(F==0, w_, bc) #Solve the variational form
   u_prev.assign(u_) #u_prev = u_
   eta_prev.assign(eta_) #eta_prev = eta_
-  h_prev.assign(h)
-  h.assign(h_next)
+  #h_prev.assign(h)
+  #h.assign(h_next)
   plot(h,rescale=False, title = "Seabed")
   plot(eta_,rescale=True, title = "Free Surface")
   t += float(dt)
   print(t)
-  h_new = Expression("h0-a0*exp(-(x[0]-xh-(t+dt)*vh)*(x[0]-xh-(t+dt)*vh)/(bh*bh))",h0=h0,xh=xh,t=t,vh=vh,bh=bh,a0=a0,dt=dt)
-  h_new = interpolate(h_new,H)
-  h_next.assign(h_new)
+  #h_new = Expression("h0-a0*exp(-(x[0]-xh-(t+dt)*vh)*(x[0]-xh-(t+dt)*vh)/(bh*bh))",h0=h0,xh=xh,t=t,vh=vh,bh=bh,a0=a0,dt=dt)
+  #h_new = interpolate(h_new,H)
+  #h_next.assign(h_new)
   if (save==True):
     fsfile << eta_ #Save heigth
     hfile << h_prev
@@ -121,15 +124,15 @@ while (t > end1 and t <= end):
   solve(F==0, w_, bc) #Solve the variational form
   u_prev.assign(u_) #u_prev = u_
   eta_prev.assign(eta_) #eta_prev = eta_
-  h_prev.assign(h)
-  h.assign(h_next)
+  #h_prev.assign(h)
+  #h.assign(h_next)
   plot(h,rescale=False, title = "Seabed")
   plot(eta_,rescale=True, title = "Free Surface")
   t += float(dt)
   print(t)
-  h_new = Expression("h0-a0*exp(-(x[0]-xh-(end1)*vh)*(x[0]-xh-(end1)*vh)/(bh*bh))",h0=h0,xh=xh,t=t,vh=vh,bh=bh,a0=a0,dt=dt,end1=end1)
-  h_new = interpolate(h_new,H)
-  h_next.assign(h_new)
+  #h_new = Expression("h0-a0*exp(-(x[0]-xh-(end1)*vh)*(x[0]-xh-(end1)*vh)/(bh*bh))",h0=h0,xh=xh,t=t,vh=vh,bh=bh,a0=a0,dt=dt,end1=end1)
+  #h_new = interpolate(h_new,H)
+  #h_next.assign(h_new)
   if (save==True):
     fsfile << eta_ #Save heigth
     hfile << h_prev

@@ -4,20 +4,24 @@ with a constant depth
 """
 
 from dolfin import *
-N = 30
-Th = UnitSquareMesh(N,N)
+Nx = 64
+Ny = 64
+Th = UnitSquareMesh(Nx,Ny)
 
 #Define Parameters
-g = 10 #Gravity
-dt = Constant(0.0005) #Time step
-t = 0.0	#Time initialization
-end = 0.5 #Final time
+g = 9.8 #Gravity [m.s^(-2)]
+dt = Constant(0.0005) #Time step [s]
+t = 0.0	#Time initialization [s]
+end = 0.5 #Final time [s]
 bmarg = 1.e-3 + DOLFIN_EPS
-#h = Constant(2) #bottom profil
-h = Expression("2-2*x[0]")
-save = False
+save = True
+
+#bottom profil
+h = Constant(0.1) #[m]
+#h = Expression("2-2*x[0]")
+
 if (save == True):
-  ufile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/SWE.pvd") #To save data in a file
+  ufile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/SWE/SWECircle2/SWECircle2.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -40,23 +44,23 @@ n=FacetNormal(Th) #Normal Vector
 
 #Initial Conditions
 #Initial Velocity
-u_0 = Expression(("(0.000001*x[1]*(1-x[1]))", "(0.000001*x[0]*x[1]*(1-x[1]))")) #Initialisation of the velocity
+u_0 = Expression(("0.0", "0.0")) #Initialisation of the velocity
 
 #Initial Height
 #Parameter for the circle
-sigma = 0.00005 
+sigma = 0.0005 
 R = 0.1 #Radius
 xC = 0.3 #center x
-yC = 0.7#center y
-A = 0.1 #Amplitude
+yC = 0.7#center y 
+A = 0.01 #Amplitude [m]
 #eta_0 = Expression("0.01*(exp(-(x[0]+2*x[1]-2)*(x[0]+2*x[1]-2)/0.01))")
-eta_0 = Expression("0.5*(exp(-(x[0])*(x[0])/0.01))")
-"""
+#eta_0 = Expression("0.5*(exp(-(x[0])*(x[0])/0.01))")
+
 eta_0 = Expression("A*(exp(-((x[0]-xC)*(x[0]-xC)+ \
 		  (x[1]-yC)*(x[1]-yC)-R*R)*((x[0]-xC)*(x[0]-xC)+ \
 		  (x[1]-yC)*(x[1]-yC)-R*R)/sigma))", \
 		    sigma=sigma, R=R, xC=xC, yC=yC, A=A)
-"""
+
 
 ###############DEFINITION OF THE WEAK FORMULATION############
 
@@ -66,7 +70,6 @@ w_prev = Function(E)
 u_prev = interpolate(u_0, V)
 
 eta_prev = interpolate(eta_0,H)
-plot(eta_prev,interacte = True)
 
 w = TrialFunction(E)
 u,eta = as_vector((w[0],w[1])),w[2]
