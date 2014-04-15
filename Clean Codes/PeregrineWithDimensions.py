@@ -2,10 +2,11 @@
 This code solves the Boussinesq System derived by Peregrine for a seabed of constant depth with a moving object
 
 """
+import scipy.integrate as si
 from dolfin import *
 
-Ny = 32
-Nx = 128
+Ny = 25
+Nx = 95
 
 x0 = -4
 x1 = 10
@@ -17,32 +18,39 @@ Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
 
 #Define some Parameters
 save = True
-dt = Constant(0.01) #Time step
+moving = True
+dt = 0.05 #Time step
 t = 0.0	#Time initialization
-end1 = 2.0 #Final time for the object
 end = 7.0 #Final time
 bmarg = 1.e-3 + DOLFIN_EPS
 
 g = 9.8 #Gravity [m.s^(-2)]
 h0 = 1 #depth  [m]
-a0 = 0.3 #height of the moving object  [m]
+a0 = 0.4 #height of the moving object  [m]
 bh = 0.7 #width of the moving object  [m]
 xh = 0.0 #start position of the moving object  [m]
-vh = 2 #speed of the moving object  [m.s^(-1)]
-"""
-#Define the profil of the moving seabed
-h_prev = Expression("h0-a0*exp(-(x[0]-xh+vh*dt)*(x[0]-xh+vh*dt)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0,vh=vh,dt=dt)
-h = Expression("h0-a0*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0)
-h_next = Expression("h0-a0*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))",h0=h0,xh=xh,t=t,bh=bh,a0=a0,vh=vh,dt=dt)
-"""
-h_prev = Constant(h0)
-h = Constant(h0)
-h_next = Constant(h0)
+
+
+  #Define the profil of the moving seabed
+if (moving == True):
+  vfinal = 1
+  velocity = lambda tt: 0.5*vfinal*(tanh(2*(tt-1))+tanh(3*(3.0-tt)))
+  amplitude = lambda tt: 0.5*a0*(tanh(8*(3.0-tt))+tanh(10+tt))
+  vh = velocity(dt)
+  ah=amplitude(dt)
+  h_prev = Expression("h0-ah*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",h0=h0,xh=xh,bh=bh,ah=ah)
+  h = Expression("h0-ah*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",h0=h0,xh=xh,bh=bh,ah=ah)
+  h_next = Expression("h0-ah*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))", dt=dt, h0=h0,xh=xh,bh=bh,ah=ah,vh=vh)
+else:
+  h_prev = Constant(h0)
+  h = Constant(h0)
+  h_next = Constant(h0)
+
 
 #Saving parameters
 if (save==True):
-  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD3/PeregrineWDFS3.pvd") #To save data in a file
-  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD3/PeregrineWDMB3.pvd") #To save data in a file
+  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD6/PeregrineWDFS6.pvd") #To save data in a file
+  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD6/PeregrineWDMB6.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -66,7 +74,7 @@ n=FacetNormal(Th) #Normal Vector
 #Initial Conditions
 u_0 = Expression(("0.0", "0.0")) #Initialisation of the velocity
 
-eta_0 = Expression("0.5*(exp(-(x[0])*(x[0])/1))") #Initialisation of the free surface
+eta_0 = Expression("0.0") #Initialisation of the free surface
 
 ###############DEFINITION OF THE WEAK FORMULATION############
 
@@ -103,37 +111,27 @@ w_ = Function(E)
 F = action(F, w_)	
 
 ###############################ITERATIONS##########################
-while (t <= end1):
+while (t <= end):
   solve(F==0, w_, bc) #Solve the variational form
   u_prev.assign(u_) #u_prev = u_
   eta_prev.assign(eta_) #eta_prev = eta_
-  #h_prev.assign(h)
-  #h.assign(h_next)
-  plot(h,rescale=False, title = "Seabed")
-  plot(eta_,rescale=True, title = "Free Surface")
   t += float(dt)
   print(t)
-  #h_new = Expression("h0-a0*exp(-(x[0]-xh-(t+dt)*vh)*(x[0]-xh-(t+dt)*vh)/(bh*bh))",h0=h0,xh=xh,t=t,vh=vh,bh=bh,a0=a0,dt=dt)
-  #h_new = interpolate(h_new,H)
-  #h_next.assign(h_new)
+  plot(eta_,rescale=True, title = "Free Surface")
+  
+  if(moving==True): #Move the object --> assigne new values to h_prev, h_, h_next
+    h_prev.assign(h)
+    h.assign(h_next)
+    intvh=si.quad(velocity, 0, t)
+    intvh=intvh[0]
+    ah=amplitude(t)
+    h_new = Expression("h0-ah*exp(-(x[0]-xh-intvh)*(x[0]-xh-intvh)/(bh*bh))",intvh=intvh, h0=h0,xh=xh,t=t,vh=vh,bh=bh,ah=ah,dt=dt)
+    h_new = interpolate(h_new,H)
+    h_next.assign(h_new)
+    plot(h,rescale=False, title = "Seabed")
+    
   if (save==True):
     fsfile << eta_ #Save heigth
     hfile << h_prev
-      
-while (t > end1 and t <= end):
-  solve(F==0, w_, bc) #Solve the variational form
-  u_prev.assign(u_) #u_prev = u_
-  eta_prev.assign(eta_) #eta_prev = eta_
-  #h_prev.assign(h)
-  #h.assign(h_next)
-  plot(h,rescale=False, title = "Seabed")
-  plot(eta_,rescale=True, title = "Free Surface")
-  t += float(dt)
-  print(t)
-  #h_new = Expression("h0-a0*exp(-(x[0]-xh-(end1)*vh)*(x[0]-xh-(end1)*vh)/(bh*bh))",h0=h0,xh=xh,t=t,vh=vh,bh=bh,a0=a0,dt=dt,end1=end1)
-  #h_new = interpolate(h_new,H)
-  #h_next.assign(h_new)
-  if (save==True):
-    fsfile << eta_ #Save heigth
-    hfile << h_prev
-      
+
+##############################END OF ITERATIONS#################################
