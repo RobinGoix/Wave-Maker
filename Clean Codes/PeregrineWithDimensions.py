@@ -31,7 +31,7 @@ bh = 0.7 #width of the moving object  [m]
 xh = 0.0 #start position of the moving object  [m]
 
 
-  #Define the profil of the moving seabed
+#Define the profil of the moving seabed
 if (moving == True):
   vfinal = 1
   velocity = lambda tt: 0.5*vfinal*(tanh(2*(tt-1))+tanh(3*(3.0-tt)))
