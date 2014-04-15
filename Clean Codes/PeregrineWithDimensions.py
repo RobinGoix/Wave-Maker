@@ -49,8 +49,8 @@ else:
 
 #Saving parameters
 if (save==True):
-  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD6/PeregrineWDFS6.pvd") #To save data in a file
-  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD6/PeregrineWDMB6.pvd") #To save data in a file
+  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD9/PeregrineWDFS9.pvd") #To save data in a file
+  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD9/PeregrineWDMB9.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -98,11 +98,11 @@ v,xi = as_vector((wt[0],wt[1])),wt[2]
 h_tt = (h_prev-2*h+h_next)/(dt*dt)
 
 F = 1/dt*inner(u-u_prev,v)*dx + inner(grad(u)*u,v)*dx - g*div(v)*eta*dx
-
+"""
 F += (1./2)*(1/dt)*div(v)*div(h*(u-u_prev))*h*dx + (1/2)*1/dt*inner(v,grad(h))*div(h*(u-u_prev))*dx \
      - (1/6)*1/dt*div(v)*div(u-u_prev)*h*h*dx - (1/6)*1/dt*inner(v,grad(h))*2*h*div(u-u_prev)*dx \
      +(1/2)*div(v)*h*h_tt*dx+(1/2)*inner(v,grad(h))*h_tt*dx
-
+"""
 F += 1/dt*(eta-eta_prev)*xi*dx +1/dt*(h-h_prev)*xi*dx - inner(u,grad(xi))*(eta+h)*dx 
       
     
