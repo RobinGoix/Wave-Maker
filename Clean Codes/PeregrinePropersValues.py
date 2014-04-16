@@ -8,51 +8,54 @@ from dolfin import *
 Ny = 25
 Nx = 95
 
-x0 = -4./5
-x1 = 2
-y0 = -0.4
-y1 = 0.4
+g = 9.8
+lambda0 = 10 #typical wavelength
+a0 = 0.5 #Typical wave height
+h0 = 1 #Typical depth
+sigma = h0/lambda0
+c0 = (h0*g)**(1/2)
+epsilon = a0/h0
+
+x0 = -4./lambda0
+x1 = 10/lambda0
+y0 = -2/lambda0
+y1 = 2/lambda0
+
 Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
 
 #Define some Parameters
 save = True
 moving = True
-g = 9.8
-c0 = g**(1/2)
-lambda0 = 5 #typical wavelength
-epsilon = 0.4
+
 dt = 0.02*c0/lambda0#Time step
 t = 0.0	#Time initialization
-end = 7.*c0/lambda0 #Final time
+end = 7.0*c0/lambda0 #Final time
 bmarg = 1.e-3 + DOLFIN_EPS
 
-h0 = 1 #depth
-a0 = 1 #height of the moving object
+hd = 1/h0 #depth
+ad = 0.2/a0 #height of the moving object
 bh = 0.7 #width of the moving object
-xh = 0.0 #start position of the moving object
-
-sigma = h0/lambda0
-
+xh = 0.0/lambda0 #start position of the moving object
 
 #Define the profil of the moving seabed
 if (moving == True):
-  vfinal = 2./(0.4*c0)
+  vfinal = 1.*h0/(a0*c0)
   velocity = lambda tt: 0.5*vfinal*(tanh(2*(lambda0/c0*tt-1))+tanh(3*(3.0-(lambda0/c0)*tt)))
-  amplitude = lambda tt: epsilon*0.5*a0*(tanh(8*(3.0-(lambda0/c0)*tt))+tanh(10+(lambda0/c0)*tt))
+  amplitude = lambda tt: epsilon*0.5*ad*(tanh(8*(3.0-(lambda0/c0)*tt))+tanh(10+(lambda0/c0)*tt))
   vh = velocity(dt)
   ah=amplitude(dt)
-  h_prev = Expression("h0-ah*exp(-(lambda0*x[0]-xh)*(lambda0*x[0]-xh)/(bh*bh))",h0=h0,xh=xh,bh=bh,ah=ah, lambda0=lambda0)
-  h = Expression("h0-ah*exp(-(lambda0*x[0]-xh)*(lambda0*x[0]-xh)/(bh*bh))",h0=h0,xh=xh,bh=bh,ah=ah, lambda0=lambda0)
-  h_next = Expression("h0-ah*exp(-(lambda0*x[0]-xh-vh*dt)*(lambda0*x[0]-xh-vh*dt)/(bh*bh))", dt=dt, h0=h0,xh=xh,bh=bh,ah=ah,vh=vh, lambda0=lambda0)
+  h_prev = Expression("hd-ah*exp(-(lambda0*x[0]-xh)*(lambda0*x[0]-xh)/(bh*bh))",hd=hd,xh=xh,bh=bh,ah=ah, lambda0=lambda0, c0=c0)
+  h = Expression("hd-ah*exp(-(lambda0*x[0]-xh)*(lambda0*x[0]-xh)/(bh*bh))",hd=hd,xh=xh,bh=bh,ah=ah, lambda0=lambda0, c0=c0)
+  h_next = Expression("hd-ah*exp(-(lambda0*x[0]-xh-vh*lambda0/c0*dt)*(lambda0*x[0]-xh-vh*lambda0/c0*dt)/(bh*bh))", dt=dt, hd=hd,xh=xh,bh=bh,ah=ah,vh=vh, lambda0=lambda0, c0=c0)
 else:
-  h_prev = Constant(h0)
-  h = Constant(h0)
-  h_next = Constant(h0)
+  h_prev = Constant(hd)
+  h = Constant(hd)
+  h_next = Constant(hd)
   
 #Saving parameters
 if (save==True):
-  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/Peregrine/PeregrineProperValues2/PeregrinePVFS2.pvd") #To save data in a file
-  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/Peregrine/PeregrineProperValues2/PeregrinePVBH2.pvd") #To save data in a file
+  fsfile = File("results/PeregrinePVFS.pvd") #To save data in a file
+  hfile = File("results/PeregrinePVBH.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -102,9 +105,15 @@ zeta_tt = (h_next-2*h+h_prev)/(epsilon*dt*dt)
 
 F = 1/dt*inner(u-u_prev,v)*dx + epsilon*inner(grad(u)*u,v)*dx - div(v)*eta*dx
 
-F += sigma*sigma/2*1/dt*div(v)*div(h*(u-u_prev))*h*dx + sigma*sigma/2*1/dt*inner(v,grad(h))*div(h*(u-u_prev))*dx \
-     - sigma*sigma/6*1/dt*div(v)*div(u-u_prev)*h*h*dx - sigma*sigma/6*1/dt*inner(v,grad(h))*2*h*div(u-u_prev)*dx \
-     +sigma*sigma/2*div(v)*h*zeta_tt*dx+sigma*sigma/2*inner(v,grad(h))*zeta_tt*dx
+"""
+F += sigma**2*1/dt*div(h*(u-u_prev))*div(h*v/2)*dx \
+      - sigma**2*1/dt*div(u-u_prev)*div(h*h*v/6)*dx \
+      + sigma**2*zeta_tt*div(h*v/2)*dx
+
+"""
+F += sigma**2*1/2*1/dt*div(v)*div(h*(u-u_prev))*h*dx + sigma**2*1/2*1/dt*inner(v,grad(h))*div(h*(u-u_prev))*dx \
+     - sigma**2*1/6*1/dt*div(v)*div(u-u_prev)*h*h*dx - sigma**2*1/6*1/dt*inner(v,grad(h))*2*h*div(u-u_prev)*dx \
+     +sigma**2*1/2*div(v)*h*zeta_tt*dx+sigma**2*1/2*inner(v,grad(h))*zeta_tt*dx
 
 F += 1/dt*(eta-eta_prev)*xi*dx + zeta_t*xi*dx - inner(u,grad(xi))*(epsilon*eta+h)*dx 
      
@@ -128,7 +137,7 @@ while (t <= end):
     intvh=si.quad(velocity, 0, t)
     intvh=intvh[0]
     ah=amplitude(t)
-    h_new = Expression("h0-ah*exp(-(lambda0*x[0]-xh-intvh)*(lambda0*x[0]-xh-intvh)/(bh*bh))",intvh=intvh, h0=h0,xh=xh,t=t,vh=vh,bh=bh,ah=ah,dt=dt,lambda0=lambda0)
+    h_new = Expression("hd-ah*exp(-(lambda0*x[0]-xh-intvh)*(lambda0*x[0]-xh-intvh)/(bh*bh))",intvh=intvh, hd=hd,xh=xh,t=t,vh=vh,bh=bh,ah=ah,dt=dt,lambda0=lambda0)
     h_new = interpolate(h_new,H)
     h_next.assign(h_new)
     plot(h,rescale=False, title = "Seabed")

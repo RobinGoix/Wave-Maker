@@ -14,19 +14,17 @@ y0 = -2
 y1 = 2
 Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
 
-#Th = UnitSquareMesh(Nx,Ny)
-
 #Define some Parameters
-save = True
+save = False
 moving = True
 dt = 0.02 #Time step
 t = 0.0	#Time initialization
 end = 7.0 #Final time
 bmarg = 1.e-3 + DOLFIN_EPS
 
-g = 9.8 #Gravity [m.s^(-2)]
-h0 = 1 #depth  [m]
-a0 = 0.4 #height of the moving object  [m]
+g = 1 #Gravity [m.s^(-2)]
+hd = 1 #depth  [m]
+ad = 0.2 #height of the moving object  [m]
 bh = 0.7 #width of the moving object  [m]
 xh = 0.0 #start position of the moving object  [m]
 
@@ -35,22 +33,22 @@ xh = 0.0 #start position of the moving object  [m]
 if (moving == True):
   vfinal = 1
   velocity = lambda tt: 0.5*vfinal*(tanh(2*(tt-1))+tanh(3*(3.0-tt)))
-  amplitude = lambda tt: 0.5*a0*(tanh(8*(3.0-tt))+tanh(10+tt))
+  amplitude = lambda tt: 0.5*ad*(tanh(8*(3.0-tt))+tanh(10+tt))
   vh = velocity(dt)
   ah=amplitude(dt)
-  h_prev = Expression("h0-ah*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",h0=h0,xh=xh,bh=bh,ah=ah)
-  h = Expression("h0-ah*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",h0=h0,xh=xh,bh=bh,ah=ah)
-  h_next = Expression("h0-ah*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))", dt=dt, h0=h0,xh=xh,bh=bh,ah=ah,vh=vh)
+  h_prev = Expression("hd-ah*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",hd=hd,xh=xh,bh=bh,ah=ah)
+  h = Expression("hd-ah*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",hd=hd,xh=xh,bh=bh,ah=ah)
+  h_next = Expression("hd-ah*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))", dt=dt, hd=hd,xh=xh,bh=bh,ah=ah,vh=vh)
 else:
-  h_prev = Constant(h0)
-  h = Constant(h0)
-  h_next = Constant(h0)
+  h_prev = Constant(hd)
+  h = Constant(hd)
+  h_next = Constant(hd)
 
 
 #Saving parameters
 if (save==True):
-  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD11/PeregrineWDFS11.pvd") #To save data in a file
-  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD11/PeregrineWDMB11.pvd") #To save data in a file
+  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD2W/LongOne/PeregrineWDFSLong.pvd") #To save data in a file
+  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/PeregrineWD/PeregrineWD2W/LongOne/PeregrineWDMBLong.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -124,13 +122,13 @@ while (t <= end):
   print(t)
   plot(eta_,rescale=True, title = "Free Surface")
   
-  if(moving==True): #Move the object --> assigne new values to h_prev, h_, h_next
+  if(moving==True): #Move the object --> assign new values to h_prev, h_, h_next
     h_prev.assign(h)
     h.assign(h_next)
     intvh=si.quad(velocity, 0, t)
     intvh=intvh[0]
     ah=amplitude(t)
-    h_new = Expression("h0-ah*exp(-(x[0]-xh-intvh)*(x[0]-xh-intvh)/(bh*bh))",intvh=intvh, h0=h0,xh=xh,t=t,vh=vh,bh=bh,ah=ah,dt=dt)
+    h_new = Expression("hd-ah*exp(-(x[0]-xh-intvh)*(x[0]-xh-intvh)/(bh*bh))",intvh=intvh, hd=hd,xh=xh,t=t,vh=vh,bh=bh,ah=ah,dt=dt)
     h_new = interpolate(h_new,H)
     h_next.assign(h_new)
     plot(h,rescale=False, title = "Seabed")
