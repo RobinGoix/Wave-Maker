@@ -42,8 +42,8 @@ else:
   
 #Saving parameters
 if (save==True):
-  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/Peregrine/Peregrine3bis/PeregrineFS3.pvd") #To save data in a file
-  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/Peregrine/Peregrine3bis/PeregrineBH3.pvd") #To save data in a file
+  fsfile = File("result/PeregrineFS3.pvd") #To save data in a file
+  hfile = File("result/PeregrineBH3.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
