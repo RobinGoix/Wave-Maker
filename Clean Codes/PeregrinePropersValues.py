@@ -22,10 +22,9 @@ y0 = -2./lambda0
 y1 = 2./lambda0
 
 Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
-plot(Th, interacte = True, axes = True)
 
 #Define some Parameters
-save = False
+save = True
 moving = True
 
 dt = 0.02*c0/lambda0#Time step
@@ -55,8 +54,8 @@ else:
   
 #Saving parameters
 if (save==True):
-  fsfile = File("results/PeregrinePVFSShortOne.pvd") #To save data in a file
-  hfile = File("results/PeregrinePVBHShortOne.pvd") #To save data in a file
+  fsfile = File("results/PeregrinePVFS.pvd") #To save data in a file
+  hfile = File("results/PeregrinePVBH.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -106,16 +105,10 @@ zeta_tt = (h_next-2*h+h_prev)/(epsilon*dt*dt)
 
 F = 1/dt*inner(u-u_prev,v)*dx + epsilon*inner(grad(u)*u,v)*dx - div(v)*eta*dx
 
-
 F += sigma**2*1/dt*div(h*(u-u_prev))*div(h*v/2)*dx \
       - sigma**2*1/dt*div(u-u_prev)*div(h*h*v/6)*dx \
       + sigma**2*zeta_tt*div(h*v/2)*dx
 
-"""
-F += sigma**2*1/2*1/dt*div(v)*div(h*(u-u_prev))*h*dx + sigma**2*1/2*1/dt*inner(v,grad(h))*div(h*(u-u_prev))*dx \
-     - sigma**2*1/6*1/dt*div(v)*div(u-u_prev)*h*h*dx - sigma**2*1/6*1/dt*inner(v,grad(h))*2*h*div(u-u_prev)*dx \
-     +sigma**2*1/2*div(v)*h*zeta_tt*dx+sigma**2*1/2*inner(v,grad(h))*zeta_tt*dx
-"""
 F += 1/dt*(eta-eta_prev)*xi*dx + zeta_t*xi*dx - inner(u,grad(xi))*(epsilon*eta+h)*dx 
      
     
