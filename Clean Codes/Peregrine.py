@@ -17,11 +17,11 @@ t = 0.0	#Time initialization
 end = 2.0 #Final time
 bmarg = 1.e-3 + DOLFIN_EPS
 
-h0 = 1 #depth
-a0 = 0.2 #height of the moving object
+h0 = 0.1 #depth
+a0 = 0.03 #height of the moving object
 bh = 0.1 #width of the moving object
 xh = 0.3 #start position of the moving object
-lambda0 = 3 #typical wavelength
+lambda0 = 0.5 #typical wavelength
 epsilon = a0/h0
 sigma = h0/lambda0
 
@@ -42,8 +42,8 @@ else:
   
 #Saving parameters
 if (save==True):
-  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/Peregrine/Peregrine1bis/PeregrineFSbis.pvd") #To save data in a file
-  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/Peregrine/Peregrine1bis/PeregrineBHbisbis.pvd") #To save data in a file
+  fsfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/Peregrine/Peregrine3bis/PeregrineFS3.pvd") #To save data in a file
+  hfile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/Peregrine/Peregrine3bis/PeregrineBH3.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -93,9 +93,9 @@ F = 1/dt*inner(u-u_prev,v)*dx + epsilon*inner(grad(u)*u,v)*dx - div(v)*eta*dx
 F += sigma*sigma/2*1/dt*div(v)*div(h*(u-u_prev))*h*dx + sigma*sigma/2*1/dt*inner(v,grad(h))*div(h*(u-u_prev))*dx \
      - sigma*sigma/6*1/dt*div(v)*div(u-u_prev)*h*h*dx - sigma*sigma/6*1/dt*inner(v,grad(h))*2*h*div(u-u_prev)*dx \
      +sigma*sigma/2*1/(dt*dt)*div(v)*h*(h_prev-2*h+h_next)*dx+sigma*sigma/2*1/(dt*dt)*inner(v,grad(h))*(h_prev-2*h+h_next)*dx
-"""  
+"""
 F += 1/dt*(eta-eta_prev)*xi*dx +1/dt*(h-h_prev)*xi*dx - inner(u,grad(xi))*(epsilon*eta+h)*dx 
-      
+     
     
 w_ = Function(E)
 (u_, eta_) = w_.split()
