@@ -10,7 +10,7 @@ Nx = 95
 
 g = 9.8
 lambda0 = 10 #typical wavelength
-a0 = 0.5 #Typical wave height
+a0 = 0.2 #Typical wave height
 h0 = 1 #Typical depth
 sigma = h0/lambda0
 c0 = (h0*g)**(1/2)
@@ -41,7 +41,7 @@ xh = 0.0/lambda0 #start position of the moving object
 if (moving == True):
   vfinal = 1.*h0/(a0*c0)
   velocity = lambda tt: 0.5*vfinal*(tanh(2*(lambda0/c0*tt-1))+tanh(3*(3.0-(lambda0/c0)*tt)))
-  amplitude = lambda tt: epsilon*0.5*ad*(tanh(8*(3.0-(lambda0/c0)*tt))+tanh(10+(lambda0/c0)*tt))
+  amplitude = lambda tt: epsilon*0.5*ad*(tanh(3*(3.0-(lambda0/c0)*tt))+tanh(10+(lambda0/c0)*tt))
   vh = velocity(dt)
   ah=amplitude(dt)
   h_prev = Expression("hd-ah*exp(-(lambda0*x[0]-xh)*(lambda0*x[0]-xh)/(bh*bh))",hd=hd,xh=xh,bh=bh,ah=ah, lambda0=lambda0, c0=c0)
@@ -68,8 +68,8 @@ E = V * H
 
 def NoSlip_boundary(x, on_boundary):
         return on_boundary and \
-               (x[1] < bmarg or x[1] > 1- bmarg or \
-                x[0] < bmarg or x[0] > 1- bmarg)
+               (x[1] < bmarg or x[1] > y1- bmarg or \
+                x[0] < bmarg or x[0] > x1- bmarg)
 No_Slip = DirichletBC(E.sub(0), [0.0, 0.0], NoSlip_boundary)
 
 bc = No_Slip

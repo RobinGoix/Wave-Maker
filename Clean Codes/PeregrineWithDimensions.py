@@ -61,8 +61,8 @@ E = V * H
 
 def NoSlip_boundary(x, on_boundary):
         return on_boundary and \
-               (x[1] < bmarg or x[1] > 1- bmarg or \
-                x[0] < bmarg or x[0] > 1- bmarg)
+               (x[1] < bmarg or x[1] > y1 - bmarg or \
+                x[0] < bmarg or x[0] > x1 - bmarg)
 No_Slip = DirichletBC(E.sub(0), [0.0, 0.0], NoSlip_boundary)
 
 bc = No_Slip
