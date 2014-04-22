@@ -39,7 +39,7 @@ xh = 0.0/lambda0 #start position of the moving object
 
 #Define the profil of the moving seabed
 if (moving == True):
-  vfinal = 1.*h0/(a0*c0)
+  vfinal = 1.
   velocity = lambda tt: 0.5*vfinal*(tanh(2*(lambda0/c0*tt-1))+tanh(3*(3.0-(lambda0/c0)*tt)))
   amplitude = lambda tt: epsilon*0.5*ad*(tanh(3*(3.0-(lambda0/c0)*tt))+tanh(10+(lambda0/c0)*tt))
   vh = velocity(dt)
@@ -129,7 +129,7 @@ while (t <= end):
     h_prev.assign(h)
     h.assign(h_next)
     intvh=si.quad(velocity, 0, t)
-    intvh=a0*lambda0/h0*intvh[0]
+    intvh=lambda0/c0*intvh[0]
     ah=amplitude(t)
     h_new = Expression("hd-ah*exp(-(lambda0*x[0]-xh-intvh)*(lambda0*x[0]-xh-intvh)/(bh*bh))",intvh=intvh, hd=hd,xh=xh,t=t,vh=vh,bh=bh,ah=ah,dt=dt,lambda0=lambda0)
     h_new = interpolate(h_new,H)
