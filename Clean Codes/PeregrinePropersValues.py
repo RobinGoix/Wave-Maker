@@ -1,20 +1,20 @@
 """
-This code solves the Boussinesq System derived by Peregrine for a seabed of constant depth with a moving object
+This code solves the Boussinesq System derived by Peregrine for a seabed of constant depth with a moving object.
 
 """
 import scipy.integrate as si
 from dolfin import *
 
 #Mesh discretization
-Ny = 25
-Nx = 95
+Ny = 32
+Nx = 128
 
 #Physical values for the physical problem
 g = 9.8 #Gravity [m.s^(-2)]
 
-dt = 0.02 #timestep [s]
+dt = 0.01 #timestep [s]
 t = 0.0 #time initialization
-end = 7.0 #End
+end = 7.0 #Final Time
 
 x0 = -4. #Domain [m]
 x1 = 10.
@@ -25,7 +25,7 @@ hd = 1. #Depth [m]
 ad = 0.4 #height of the moving object [m]
 bh = 0.7 #width of the moving object 
 xh = 0.0 #start position of the moving object [m]
-vfinal = 1. #Maximal velocity of the moving object [m.s^(-1)]
+vfinal = 2. #Maximal velocity of the moving object [m.s^(-1)]
 
 u_0 = Expression(("0.0", "0.0")) #Initialisation of the velocity
 eta_0 = Expression("0.0") #Initialisation of the free surface
@@ -78,8 +78,8 @@ else:
   
 #Saving parameters
 if (save==True):
-  fsfile = File("results/PeregrinePV6/PeregrinePVFS.pvd") #To save data in a file
-  hfile = File("results/PeregrinePV6/PeregrinePVMB.pvd") #To save data in a file
+  fsfile = File("results/PeregrinePV/PeregrinePVFS.pvd") #To save data in a file
+  hfile = File("results/PeregrinePV/PeregrinePVMB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity

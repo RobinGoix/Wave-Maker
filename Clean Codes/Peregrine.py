@@ -6,7 +6,7 @@ import scipy.integrate as si
 from dolfin import *
 
 Ny = 32
-Nx = 64
+Nx = 128
 Th = UnitSquareMesh(Nx,Ny)
 
 #Define some Parameters

@@ -5,40 +5,51 @@ This code solves the Boussinesq System derived by Peregrine for a seabed of cons
 import scipy.integrate as si
 from dolfin import *
 
-Ny = 25
-Nx = 95
+#Mesh discretization
+Ny = 32
+Nx = 128
 
-x0 = -4.
+#Physical values
+g = 9.8 #Gravity [m.s^(-2)]
+
+dt = 0.01 #timestep [s]
+t = 0.0 #time initialization
+end = 7.0 #Final Time
+
+x0 = -4. #Domain [m]
 x1 = 10.
 y0 = -2.
 y1 = 2.
-Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
 
-#Define some Parameters
-save = True
-moving = True
-dt = 0.02 #Time step
-t = 0.0	#Time initialization
-end = 7.0 #Final time
-bmarg = 1.e-3 + DOLFIN_EPS
-
-g = 9.8 #Gravity [m.s^(-2)]
 hd = 1. #depth  [m]
 ad = 0.4 #height of the moving object  [m]
 bh = 0.7 #width of the moving object  [m]
 xh = 0.0 #start position of the moving object  [m]
+vfinal = 2. #Maximal velocity of the moving object [m.s^(-1)]
 
+u_0 = Expression(("0.0", "0.0")) #Initialisation of the velocity
+eta_0 = Expression("0.0") #Initialisation of the free surface
+
+Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
+
+#Other Parameters
+save = True
+moving = True
+ploting = False
+bmarg = 1.e-3 + DOLFIN_EPS
 
 #Define the profil of the moving seabed
 if (moving == True):
-  vfinal = 1.
   velocity = lambda tt: 0.5*vfinal*(tanh(2.*(tt-1.))+tanh(3.*(3.0-tt)))
   amplitude = lambda tt: 0.5*ad*(tanh(3.*(3.0-tt))+tanh(10.+tt))
   vh = velocity(dt)
   ah=amplitude(dt)
-  h_prev = Expression("hd-ah*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",hd=hd,xh=xh,bh=bh,ah=ah)
-  h = Expression("hd-ah*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",hd=hd,xh=xh,bh=bh,ah=ah)
-  h_next = Expression("hd-ah*exp(-(x[0]-xh-vh*dt)*(x[0]-xh-vh*dt)/(bh*bh))", dt=dt, hd=hd,xh=xh,bh=bh,ah=ah,vh=vh)
+  h_prev = Expression("hd-ah*exp(-pow((x[0]-xh)/bh,2))",\
+	    hd=hd, xh=xh, bh=bh, ah=ah)
+  h = Expression("hd-ah*exp(-pow((x[0]-xh)/bh,2))",\
+	    hd=hd,xh=xh,bh=bh,ah=ah)
+  h_next = Expression("hd-ah*exp(-pow((x[0]-xh-vh*dt)/bh,2))",\
+	    dt=dt, hd=hd, xh=xh, bh=bh, ah=ah, vh=vh)
 else:
   h_prev = Constant(hd)
   h = Constant(hd)
@@ -47,8 +58,8 @@ else:
 
 #Saving parameters
 if (save==True):
-  fsfile = File("results/PeregrineWD5/PeregrineWDFS.pvd") #To save data in a file
-  hfile = File("results/PeregrineWD5/PeregrineWDMB.pvd") #To save data in a file
+  fsfile = File("results/PeregrineWD/PeregrineWDFS.pvd") #To save data in a file
+  hfile = File("results/PeregrineWD/PeregrineWDMB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -68,11 +79,6 @@ No_Slip = DirichletBC(E.sub(0), [0.0, 0.0], NoSlip_boundary)
 bc = No_Slip
 
 n=FacetNormal(Th) #Normal Vector
-
-#Initial Conditions
-u_0 = Expression(("0.0", "0.0")) #Initialisation of the velocity
-
-eta_0 = Expression("0.0") #Initialisation of the free surface
 
 ###############DEFINITION OF THE WEAK FORMULATION############
 
@@ -116,7 +122,6 @@ while (t <= end):
   eta_prev.assign(eta_) #eta_prev = eta_
   t += float(dt)
   print(t)
-  #plot(eta_,rescale=True, title = "Free Surface")
   
   if(moving==True): #Move the object --> assign new values to h_prev, h_, h_next
     h_prev.assign(h)
@@ -124,10 +129,14 @@ while (t <= end):
     intvh=si.quad(velocity, 0, t)
     intvh=intvh[0]
     ah=amplitude(t)
-    h_new = Expression("hd-ah*exp(-(x[0]-xh-intvh)*(x[0]-xh-intvh)/(bh*bh))",intvh=intvh, hd=hd,xh=xh,t=t,vh=vh,bh=bh,ah=ah,dt=dt)
+    h_new = Expression("hd-ah*exp(-pow((x[0]-xh-intvh)/bh,2))",\
+	      intvh=intvh, hd=hd, xh=xh, bh=bh, ah=ah)
     h_new = interpolate(h_new,H)
     h_next.assign(h_new)
-    #plot(h,rescale=False, title = "Seabed")
+    
+  if (ploting==True):
+    plot(eta_,rescale=True, title = "Free Surface")
+    plot(h,rescale=False, title = "Seabed")
     
   if (save==True):
     fsfile << eta_ #Save heigth
