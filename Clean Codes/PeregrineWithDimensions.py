@@ -47,8 +47,8 @@ else:
 
 #Saving parameters
 if (save==True):
-  fsfile = File("results/PeregrineWD2/PeregrineWDFS.pvd") #To save data in a file
-  hfile = File("results/PeregrineWD2/PeregrineWDMB.pvd") #To save data in a file
+  fsfile = File("results/PeregrineWD4/PeregrineWDFS.pvd") #To save data in a file
+  hfile = File("results/PeregrineWD4/PeregrineWDMB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
