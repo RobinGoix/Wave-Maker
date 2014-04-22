@@ -9,7 +9,7 @@ Ny = 25
 Nx = 95
 
 g = 9.8
-lambda0 = 10 #typical wavelength
+lambda0 = 20 #typical wavelength
 a0 = 0.2 #Typical wave height
 h0 = 1 #Typical depth
 sigma = h0/lambda0
@@ -33,7 +33,7 @@ end = 7.0*c0/lambda0 #Final time
 bmarg = 1.e-3 + DOLFIN_EPS
 
 hd = 1/h0 #depth
-ad = 0.2/a0 #height of the moving object
+ad = 0.4/a0 #height of the moving object
 bh = 0.7 #width of the moving object
 xh = 0.0/lambda0 #start position of the moving object
 
@@ -54,8 +54,8 @@ else:
   
 #Saving parameters
 if (save==True):
-  fsfile = File("results/PeregrinePVFS.pvd") #To save data in a file
-  hfile = File("results/PeregrinePVBH.pvd") #To save data in a file
+  fsfile = File("results/PeregrinePV2/PeregrinePVFS.pvd") #To save data in a file
+  hfile = File("results/PeregrinePV2/PeregrinePVMB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -123,18 +123,18 @@ while (t <= end):
   eta_prev.assign(eta_) #eta_prev = eta_
   t += float(dt)
   print(t)
-  plot(eta_,rescale=True, title = "Free Surface")
+  #plot(eta_,rescale=True, title = "Free Surface")
   
   if(moving==True): #Move the object --> assigne new values to h_prev, h_, h_next
     h_prev.assign(h)
     h.assign(h_next)
     intvh=si.quad(velocity, 0, t)
-    intvh=intvh[0]
+    intvh=a0*lambda0/h0*intvh[0]
     ah=amplitude(t)
     h_new = Expression("hd-ah*exp(-(lambda0*x[0]-xh-intvh)*(lambda0*x[0]-xh-intvh)/(bh*bh))",intvh=intvh, hd=hd,xh=xh,t=t,vh=vh,bh=bh,ah=ah,dt=dt,lambda0=lambda0)
     h_new = interpolate(h_new,H)
     h_next.assign(h_new)
-    plot(h,rescale=False, title = "Seabed")
+    #plot(h,rescale=False, title = "Seabed")
     
   if (save==True):
     fsfile << eta_ #Save heigth

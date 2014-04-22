@@ -24,7 +24,7 @@ bmarg = 1.e-3 + DOLFIN_EPS
 
 g = 9.8 #Gravity [m.s^(-2)]
 hd = 1 #depth  [m]
-ad = 0.2 #height of the moving object  [m]
+ad = 0.4 #height of the moving object  [m]
 bh = 0.7 #width of the moving object  [m]
 xh = 0.0 #start position of the moving object  [m]
 
@@ -47,8 +47,8 @@ else:
 
 #Saving parameters
 if (save==True):
-  fsfile = File("results/PeregrineWDFSLong.pvd") #To save data in a file
-  hfile = File("results/PeregrineWDMBLong.pvd") #To save data in a file
+  fsfile = File("results/PeregrineWD2/PeregrineWDFS.pvd") #To save data in a file
+  hfile = File("results/PeregrineWD2/PeregrineWDMB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -114,7 +114,7 @@ while (t <= end):
   eta_prev.assign(eta_) #eta_prev = eta_
   t += float(dt)
   print(t)
-  plot(eta_,rescale=True, title = "Free Surface")
+  #plot(eta_,rescale=True, title = "Free Surface")
   
   if(moving==True): #Move the object --> assign new values to h_prev, h_, h_next
     h_prev.assign(h)
@@ -125,7 +125,7 @@ while (t <= end):
     h_new = Expression("hd-ah*exp(-(x[0]-xh-intvh)*(x[0]-xh-intvh)/(bh*bh))",intvh=intvh, hd=hd,xh=xh,t=t,vh=vh,bh=bh,ah=ah,dt=dt)
     h_new = interpolate(h_new,H)
     h_next.assign(h_new)
-    plot(h,rescale=False, title = "Seabed")
+    #plot(h,rescale=False, title = "Seabed")
     
   if (save==True):
     fsfile << eta_ #Save heigth
