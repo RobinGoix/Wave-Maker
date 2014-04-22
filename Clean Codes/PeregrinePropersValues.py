@@ -31,11 +31,11 @@ u_0 = Expression(("0.0", "0.0")) #Initialisation of the velocity
 eta_0 = Expression("0.0") #Initialisation of the free surface
 
 #Scaling parameters
-lambda0 = 1 #typical wavelength
-a0 = 1 #Typical wave height
-h0 = 1 #Typical depth
+lambda0 = 20. #typical wavelength
+a0 = 0.4 #Typical wave height
+h0 = 1. #Typical depth
 sigma = h0/lambda0
-c0 = (h0*g)**(1/2)
+c0 = (h0*g)**(0.5)
 epsilon = a0/h0
 
 #Other Parameters
@@ -61,8 +61,8 @@ xh = xh/lambda0 #start position of the moving object
 
 #Define the profil of the moving seabed
 if (moving == True):
-  velocity = lambda tt: 0.5*vfinal*(tanh(2*(lambda0/c0*tt-1))+tanh(3*(3.0-(lambda0/c0)*tt)))
-  amplitude = lambda tt: epsilon*0.5*ad*(tanh(3*(3.0-(lambda0/c0)*tt))+tanh(10+(lambda0/c0)*tt))
+  velocity = lambda tt: 0.5*vfinal*(tanh(2.*(lambda0/c0*tt-1.))+tanh(3.*(3.0-(lambda0/c0)*tt)))
+  amplitude = lambda tt: epsilon*0.5*ad*(tanh(3.*(3.0-(lambda0/c0)*tt))+tanh(10.+(lambda0/c0)*tt))
   vh = velocity(dt)
   ah=amplitude(dt)
   h_prev = Expression("hd-ah*exp(-pow((lambda0*(x[0]-xh))/bh,2))",\
@@ -78,8 +78,8 @@ else:
   
 #Saving parameters
 if (save==True):
-  fsfile = File("results/PeregrinePV4/PeregrinePVFS.pvd") #To save data in a file
-  hfile = File("results/PeregrinePV4/PeregrinePVMB.pvd") #To save data in a file
+  fsfile = File("results/PeregrinePV6/PeregrinePVFS.pvd") #To save data in a file
+  hfile = File("results/PeregrinePV6/PeregrinePVMB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -120,16 +120,16 @@ wt = TestFunction(E)
 v,xi = as_vector((wt[0],wt[1])),wt[2]
 
 zeta_t = (h-h_prev)/(epsilon*dt)
-zeta_tt = (h_next-2*h+h_prev)/(epsilon*dt*dt)
+zeta_tt = (h_next-2.*h+h_prev)/(epsilon*dt*dt)
 
-F = 1/dt*inner(u-u_prev,v)*dx + epsilon*inner(grad(u)*u,v)*dx \
+F = 1./dt*inner(u-u_prev,v)*dx + epsilon*inner(grad(u)*u,v)*dx \
     - div(v)*eta*dx
 
-F += sigma**2*1/dt*div(h*(u-u_prev))*div(h*v/2)*dx \
-      - sigma**2*1/dt*div(u-u_prev)*div(h*h*v/6)*dx \
-      + sigma**2*zeta_tt*div(h*v/2)*dx
+F += sigma**2.*1./dt*div(h*(u-u_prev))*div(h*v/2.)*dx \
+      - sigma**2.*1./dt*div(u-u_prev)*div(h*h*v/6.)*dx \
+      + sigma**2.*zeta_tt*div(h*v/2.)*dx
 
-F += 1/dt*(eta-eta_prev)*xi*dx + zeta_t*xi*dx \
+F += 1./dt*(eta-eta_prev)*xi*dx + zeta_t*xi*dx \
       - inner(u,grad(xi))*(epsilon*eta+h)*dx 
      
     

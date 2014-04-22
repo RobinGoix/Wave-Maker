@@ -8,10 +8,10 @@ from dolfin import *
 Ny = 25
 Nx = 95
 
-x0 = -4
-x1 = 10
-y0 = -2
-y1 = 2
+x0 = -4.
+x1 = 10.
+y0 = -2.
+y1 = 2.
 Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
 
 #Define some Parameters
@@ -23,7 +23,7 @@ end = 7.0 #Final time
 bmarg = 1.e-3 + DOLFIN_EPS
 
 g = 9.8 #Gravity [m.s^(-2)]
-hd = 1 #depth  [m]
+hd = 1. #depth  [m]
 ad = 0.4 #height of the moving object  [m]
 bh = 0.7 #width of the moving object  [m]
 xh = 0.0 #start position of the moving object  [m]
@@ -31,9 +31,9 @@ xh = 0.0 #start position of the moving object  [m]
 
 #Define the profil of the moving seabed
 if (moving == True):
-  vfinal = 1
-  velocity = lambda tt: 0.5*vfinal*(tanh(2*(tt-1))+tanh(3*(3.0-tt)))
-  amplitude = lambda tt: 0.5*ad*(tanh(3*(3.0-tt))+tanh(10+tt))
+  vfinal = 1.
+  velocity = lambda tt: 0.5*vfinal*(tanh(2.*(tt-1.))+tanh(3.*(3.0-tt)))
+  amplitude = lambda tt: 0.5*ad*(tanh(3.*(3.0-tt))+tanh(10.+tt))
   vh = velocity(dt)
   ah=amplitude(dt)
   h_prev = Expression("hd-ah*exp(-(x[0]-xh)*(x[0]-xh)/(bh*bh))",hd=hd,xh=xh,bh=bh,ah=ah)
@@ -47,8 +47,8 @@ else:
 
 #Saving parameters
 if (save==True):
-  fsfile = File("results/PeregrineWD4/PeregrineWDFS.pvd") #To save data in a file
-  hfile = File("results/PeregrineWD4/PeregrineWDMB.pvd") #To save data in a file
+  fsfile = File("results/PeregrineWD5/PeregrineWDFS.pvd") #To save data in a file
+  hfile = File("results/PeregrineWD5/PeregrineWDMB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -93,15 +93,17 @@ u,eta = as_vector((w[0],w[1])),w[2]
 wt = TestFunction(E)
 v,xi = as_vector((wt[0],wt[1])),wt[2]
 
-h_tt = (h_prev-2*h+h_next)/(dt*dt)
+h_tt = (h_prev-2.*h+h_next)/(dt*dt)
 
-F = 1/dt*inner(u-u_prev,v)*dx + inner(grad(u)*u,v)*dx - g*div(v)*eta*dx
+F = 1./dt*inner(u-u_prev,v)*dx + inner(grad(u)*u,v)*dx \
+    - g*div(v)*eta*dx
 
-F += 1/dt*div(h*(u-u_prev))*div(h*v/2)*dx \
-     - 1/dt*div(u-u_prev)*div(h*h*v/6)*dx \
-     + h_tt*div(h*v/2)*dx
+F += 1./dt*div(h*(u-u_prev))*div(h*v/2.)*dx \
+     - 1./dt*div(u-u_prev)*div(h*h*v/6.)*dx \
+     + h_tt*div(h*v/2.)*dx
 
-F += 1/dt*(eta-eta_prev)*xi*dx +1/dt*(h-h_prev)*xi*dx - inner(u,grad(xi))*(eta+h)*dx 
+F += 1./dt*(eta-eta_prev)*xi*dx +1./dt*(h-h_prev)*xi*dx \
+      - inner(u,grad(xi))*(eta+h)*dx 
       
 w_ = Function(E)
 (u_, eta_) = w_.split()
