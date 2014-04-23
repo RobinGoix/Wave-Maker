@@ -3,6 +3,8 @@ This code solves the Boussinesq System derived by Peregrine for a seabed of cons
 
 """
 import scipy.integrate as si
+import matplotlib.pyplot as plt
+import numpy as np
 from dolfin import *
 
 #Mesh discretization
@@ -14,18 +16,18 @@ g = 9.8 #Gravity [m.s^(-2)]
 
 dt = 0.01 #timestep [s]
 t = 0.0 #time initialization
-end = 7.0 #Final Time
+end = 6.0 #Final Time
 
-x0 = -4. #Domain [m]
+x0 = -5. #Domain [m]
 x1 = 10.
 y0 = -2.
 y1 = 2.
 
 hd = 1. #Depth [m]
-ad = 0.4 #height of the moving object [m]
+ad = 0.2 #height of the moving object [m]
 bh = 0.7 #width of the moving object 
 xh = 0.0 #start position of the moving object [m]
-vfinal = 2. #Maximal velocity of the moving object [m.s^(-1)]
+
 
 u_0 = Expression(("0.0", "0.0")) #Initialisation of the velocity
 eta_0 = Expression("0.0") #Initialisation of the free surface
@@ -44,6 +46,7 @@ moving = True
 ploting = False
 bmarg = 1.e-3 + DOLFIN_EPS
 
+
 #Scaled parameters to solve the dimensionless problem
 x0 = x0/lambda0
 x1 = x1/lambda0
@@ -61,9 +64,20 @@ xh = xh/lambda0 #start position of the moving object
 
 #Define the profil of the moving seabed
 if (moving == True):
-  velocity = lambda tt: 0.5*vfinal*(tanh(2.*(lambda0/c0*tt-1.))+tanh(3.*(3.0-(lambda0/c0)*tt)))
-  amplitude = lambda tt: epsilon*0.5*ad*(tanh(3.*(3.0-(lambda0/c0)*tt))+tanh(10.+(lambda0/c0)*tt))
+  #Parameters for the velocity
+  p1=4
+  d1=1.
+  p2=3.
+  d2=4.
+  vfinal = 1.5 #Maximal velocity of the moving object [m.s^(-1)]
+  velocity = lambda tt: 0.5*vfinal*(tanh(p1*(lambda0/c0*tt-d1))+tanh(p2*(d2-(lambda0/c0)*tt)))
   vh = velocity(dt)
+  #Plotting velocity curve
+  r=np.arange(t,end,dt)
+  plt.plot(r,map(velocity, r))
+  plt.show()
+  #amplitude = lambda tt: epsilon*0.5*ad*(tanh(3.*(3.0-(lambda0/c0)*tt))+tanh(10.+(lambda0/c0)*tt))
+  amplitude = lambda tt: epsilon*ad
   ah=amplitude(dt)
   h_prev = Expression("hd-ah*exp(-pow((lambda0*(x[0]-xh))/bh,2))",\
 	    hd=hd, ah=ah, xh=xh, bh=bh, lambda0=lambda0)
@@ -78,8 +92,8 @@ else:
   
 #Saving parameters
 if (save==True):
-  fsfile = File("results/PeregrinePV/PeregrinePVFS.pvd") #To save data in a file
-  hfile = File("results/PeregrinePV/PeregrinePVMB.pvd") #To save data in a file
+  fsfile = File("results/Peregrine2/FS.pvd") #To save data in a file
+  hfile = File("results/Peregrine2/MB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -158,7 +172,7 @@ while (t <= end):
     
   if (ploting==True):
     plot(eta_,rescale=True, title = "Free Surface")
-    plot(h,rescale=False, title = "Seabed")
+    plot(h_new-h,rescale=False, title = "Seabed")
     
   if (save==True):
     fsfile << eta_ #Save heigth
