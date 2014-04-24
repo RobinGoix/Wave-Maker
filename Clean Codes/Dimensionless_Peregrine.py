@@ -41,10 +41,10 @@ c0 = (h0*g)**(0.5)
 epsilon = a0/h0
 
 #Other Parameters
-save = True
+save = False
 moving = True
 ploting = False
-bmarg = 1.e-3 + DOLFIN_EPS
+bmarg = DOLFIN_EPS
 
 
 #Scaled parameters to solve the dimensionless problem
