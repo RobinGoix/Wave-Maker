@@ -16,7 +16,7 @@ g = 9.8 #Gravity [m.s^(-2)]
 
 dt = 0.08 #timestep [s]
 t = 0.0 #time initialization
-end = 6.0 #Final Time
+end = 60.0 #Final Time
 
 x0 = -5. #Domain [m]
 x1 = 10.
@@ -61,41 +61,41 @@ xh = xh/lambda0 #start position of the moving object
 
 #Define the profil of the moving seabed
 if (moving == True):
-  #Parameters for the velocity
-  """
-  p1=4
-  d1=1.
-  p2=3.
-  d2=4.
-  vfinal = 1.5 #Maximal velocity of the moving object [m.s^(-1)]
-  velocity = lambda tt: 0.5*vfinal*(tanh(p1*(lambda0/c0*tt-d1))+tanh(p2*(d2-(lambda0/c0)*tt)))
-  vh = velocity(dt)
-  
-  #Plotting velocity curve
-  r=np.arange(t,end,dt)
-  plt.plot(r,map(velocity, r))
-  plt.show()
-  """
-  
-  xfinal = 4. #Final Position of the moving object [m]
-  #traj = '(c0*vfinal*(log(tanh((3*lambda0*t)/c0 - 6) + 1) - log(tanh((3*lambda0*t)/c0 - 12) + 1) - log(tanh((3*lambda0*t0)/c0 - 6) + 1) + log(tanh((3*lambda0*t0)/c0 - 12) + 1)))/(6*lambda0)'
-  traj = 'xfinal/2.*(tanh(lambda0/c0*t-2.)+1.)'
-  
-  h_prev = Expression("hd-epsilon*ad*exp(-pow((lambda0*(x[0]-xh))/bh,2))",\
-	    hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, lambda0=lambda0)
-  h = Expression("hd-epsilon*ad*exp(-pow((lambda0*(x[0]-xh))/bh,2))", \
-	    hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, lambda0=lambda0)
-  h_next = Expression("hd-epsilon*ad*exp(-pow((lambda0*(x[0]-xh))/bh,2))", \
-	    hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, lambda0=lambda0)
+    #Parameters for the velocity
+    """
+    p1=4
+    d1=1.
+    p2=3.
+    d2=4.
+    vfinal = 1.5 #Maximal velocity of the moving object [m.s^(-1)]
+    velocity = lambda tt: 0.5*vfinal*(tanh(p1*(lambda0/c0*tt-d1))+tanh(p2*(d2-(lambda0/c0)*tt)))
+    vh = velocity(dt)
+
+    #Plotting velocity curve
+    r=np.arange(t,end,dt)
+    plt.plot(r,map(velocity, r))
+    plt.show()
+    """
+
+    xfinal = 4. #Final Position of the moving object [m]
+    #traj = '(c0*vfinal*(log(tanh((3*lambda0*t)/c0 - 6) + 1) - log(tanh((3*lambda0*t)/c0 - 12) + 1) - log(tanh((3*lambda0*t0)/c0 - 6) + 1) + log(tanh((3*lambda0*t0)/c0 - 12) + 1)))/(6*lambda0)'
+    traj = 'xfinal/2.*(tanh(lambda0/c0*t-2.)+1.)'
+    D = 'hd - 0.5/3.*(x[1]>-1./lambda0 ? 1. : 0.)*(lambda0*x[1]+1.)'
+    bottom = D + ' - epsilon*ad*exp(-pow((lambda0*x[0] -' + traj + ')/bh,2))*exp(-pow((lambda0*x[1]+2),2))'
+    
+    h_prev = Expression(bottom, hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, lambda0=lambda0, xfinal=xfinal, c0=c0, t=0)
+    h = h_prev
+    h_next = h_prev
+    
 else:
-  h_prev = Constant(hd)
-  h = Constant(hd)
-  h_next = Constant(hd)
+    h_prev = Constant(hd)
+    h = Constant(hd)
+    h_next = Constant(hd)
   
 #Saving parameters
 if (save==True):
-  fsfile = File("results/Peregrinetraj2/FS.pvd") #To save data in a file
-  hfile = File("results/Peregrinetraj2/MB.pvd") #To save data in a file
+    fsfile = File("results/Peregrinetraj2/FS.pvd") #To save data in a file
+    hfile = File("results/Peregrinetraj2/MB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -166,7 +166,7 @@ while (t <= end):
     h.assign(h_next)
     #intvh=si.quad(velocity, 0, t)
     #intvh=intvh[0] 
-    h_new = Expression("hd-epsilon*ad*exp(-pow((lambda0*(x[0]-xh)-" + traj + ")/bh,2))", \
+    h_new = Expression(bottom, \
         hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, xfinal=xfinal, lambda0=lambda0, t=t, c0=c0)
     h_new = interpolate(h_new,H)
     h_next.assign(h_new)
