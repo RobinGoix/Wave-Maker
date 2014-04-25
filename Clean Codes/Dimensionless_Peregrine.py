@@ -19,12 +19,12 @@ t = 0.0 #time initialization
 end = 60.0 #Final Time
 
 x0 = -5. #Domain [m]
-x1 = 10.
+x1 = 20.
 y0 = -2.
 y1 = 2.
 
 hd = 1. #Depth [m]
-ad = 0.2 #height of the moving object [m]
+ad = 0.6 #height of the moving object [m]
 bh = 0.7 #width of the moving object 
 xh = 0.0 #start position of the moving object [m]
 
@@ -77,13 +77,14 @@ if (moving == True):
     plt.show()
     """
 
-    xfinal = 4. #Final Position of the moving object [m]
+    xfinal = 30. #Final Position of the moving object [m]
+    vmax = 3 #Max speed
     #traj = '(c0*vfinal*(log(tanh((3*lambda0*t)/c0 - 6) + 1) - log(tanh((3*lambda0*t)/c0 - 12) + 1) - log(tanh((3*lambda0*t0)/c0 - 6) + 1) + log(tanh((3*lambda0*t0)/c0 - 12) + 1)))/(6*lambda0)'
-    traj = 'xfinal/2.*(tanh(lambda0/c0*t-2.)+1.)'
+    traj = 'xfinal/2.*(tanh((lambda0/c0*t-2.)*2*vmax/xfinal)+1.-tanh(4.*2.*3./30.))'
     D = 'hd - 0.5/3.*(x[1]>-1./lambda0 ? 1. : 0.)*(lambda0*x[1]+1.)'
-    bottom = D + ' - epsilon*ad*exp(-pow((lambda0*x[0] -' + traj + ')/bh,2))*exp(-pow((lambda0*x[1]+2),2))'
+    bottom = D + ' - epsilon*ad*exp(-pow((lambda0*x[0] -' + traj + ')/bh,2))*exp(-pow((lambda0*x[1]+2)/2,2))'
     
-    h_prev = Expression(bottom, hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, lambda0=lambda0, xfinal=xfinal, c0=c0, t=0)
+    h_prev = Expression(bottom, hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, lambda0=lambda0, vmax=vmax, xfinal=xfinal, c0=c0, t=0)
     h = h_prev
     h_next = h_prev
     
@@ -155,28 +156,28 @@ F = action(F, w_)
 
 ###############################ITERATIONS##########################
 while (t <= end):
-  solve(F==0, w_, bc) #Solve the variational form
-  u_prev.assign(u_) #u_prev = u_
-  eta_prev.assign(eta_) #eta_prev = eta_
-  t += float(dt)
-  print(t)
+    #solve(F==0, w_, bc) #Solve the variational form
+    #u_prev.assign(u_) #u_prev = u_
+    #eta_prev.assign(eta_) #eta_prev = eta_
+    t += float(dt)
+    print(t)
 
-  if(moving==True): #Move the object --> assigne new values to h_prev, h_, h_next
-    h_prev.assign(h)
-    h.assign(h_next)
-    #intvh=si.quad(velocity, 0, t)
-    #intvh=intvh[0] 
-    h_new = Expression(bottom, \
-        hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, xfinal=xfinal, lambda0=lambda0, t=t, c0=c0)
-    h_new = interpolate(h_new,H)
-    h_next.assign(h_new)
-    
-  if (ploting==True):
-    plot(eta_,rescale=True, title = "Free Surface")
-    plot(h_next,rescale=False, title = "Seabed")
-    
-  if (save==True):
-    fsfile << eta_ #Save heigth
-    hfile << h_prev
+    if(moving==True): #Move the object --> assigne new values to h_prev, h_, h_next
+        h_prev.assign(h)
+        h.assign(h_next)
+        #intvh=si.quad(velocity, 0, t)
+        #intvh=intvh[0] 
+        h_new = Expression(bottom, \
+            hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, xfinal=xfinal, vmax=vmax, lambda0=lambda0, t=t, c0=c0)
+        h_new = interpolate(h_new,H)
+        h_next.assign(h_new)
+
+    if (ploting==True):
+        #plot(eta_,rescale=True, title = "Free Surface")
+        plot(h_next,rescale=False, title = "Seabed")
+
+    if (save==True):
+        fsfile << eta_ #Save heigth
+        hfile << h_prev
 
 ##############################END OF ITERATIONS#################################
