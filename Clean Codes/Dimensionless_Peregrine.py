@@ -8,23 +8,23 @@ import numpy as np
 from dolfin import *
 
 #Mesh discretization
-Ny = 20
-Nx = 64
+Ny = 64
+Nx = 128
 
 #Physical values for the physical problem
 g = 9.8 #Gravity [m.s^(-2)]
 
-dt = 0.08 #timestep [s]
+dt = 0.02 #timestep [s]
 t = 0.0 #time initialization
 end = 60.0 #Final Time
 
-x0 = -5. #Domain [m]
-x1 = 20.
-y0 = -2.
-y1 = 2.
+x0 = -2. #Domain [m]
+x1 = 6.
+y0 = -6.
+y1 = 6.
 
 hd = 1. #Depth [m]
-ad = 0.6 #height of the moving object [m]
+ad = 0.4 #height of the moving object [m]
 bh = 0.7 #width of the moving object 
 xh = 0.0 #start position of the moving object [m]
 
@@ -78,11 +78,14 @@ if (moving == True):
     """
 
     xfinal = 30. #Final Position of the moving object [m]
-    vmax = 3 #Max speed
+    vmax = (hd*g)**(0.5) #Speed
     #traj = '(c0*vfinal*(log(tanh((3*lambda0*t)/c0 - 6) + 1) - log(tanh((3*lambda0*t)/c0 - 12) + 1) - log(tanh((3*lambda0*t0)/c0 - 6) + 1) + log(tanh((3*lambda0*t0)/c0 - 12) + 1)))/(6*lambda0)'
-    traj = 'xfinal/2.*(tanh((lambda0/c0*t-2.)*2*vmax/xfinal)+1.-tanh(4.*2.*3./30.))'
-    D = 'hd - 0.5/3.*(x[1]>-1./lambda0 ? 1. : 0.)*(lambda0*x[1]+1.)'
-    bottom = D + ' - epsilon*ad*exp(-pow((lambda0*x[0] -' + traj + ')/bh,2))*exp(-pow((lambda0*x[1]+2)/2,2))'
+    #traj = 'xfinal/2.*(tanh((lambda0/c0*t-2.)*2*vmax/xfinal)+1.-tanh(4.*2.*3./30.))'
+    seabed = 'hd - 0.5/4.*(x[1]>2./lambda0 ? 1. : 0.)*(lambda0*x[1]-2.) + 0.5/4.*(x[1]<(-2./lambda0) ? 1. : 0.)*(lambda0*x[1]+2.)'
+    traj = 'vmax*lambda0/c0*t*exp(-0.001/pow(lambda0/c0*t,2))'
+    movigObject = ' - (x[1]>0 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. - tanh(lambda0*x[1]-2.))*(tanh(10*(1. - lambda0*x[0] + ' + traj + ')) + tanh(lambda0*x[0] - ' + traj + ' + 1)) ' \
+                  + ' - (x[1]<=0 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. + tanh(lambda0*x[1]+2.))*(tanh(10*(1. - lambda0*x[0] + ' + traj + ')) + tanh(lambda0*x[0] - ' + traj + ' + 1)) ' 
+    bottom = seabed + movigObject
     
     h_prev = Expression(bottom, hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, lambda0=lambda0, vmax=vmax, xfinal=xfinal, c0=c0, t=0)
     h = h_prev
@@ -174,7 +177,7 @@ while (t <= end):
 
     if (ploting==True):
         #plot(eta_,rescale=True, title = "Free Surface")
-        plot(h_next,rescale=False, title = "Seabed")
+        plot(h_next,rescale=False, title = "Seabed", axis = True)
 
     if (save==True):
         fsfile << eta_ #Save heigth
