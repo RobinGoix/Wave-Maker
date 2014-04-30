@@ -7,8 +7,8 @@ import numpy as np
 from dolfin import *
 
 #Mesh discretization
-Ny = 32
-Nx = 64
+Ny = 30
+Nx = 60
 
 #Physical values for the physical problem
 g = 9.8 #Gravity [m.s^(-2)]
@@ -18,9 +18,9 @@ t = 0.0 #time initialization
 end = 60.0 #Final Time
 
 x0 = -20. #Domain [m]
-x1 = 10.
-y0 = -10.
-y1 = 10.
+x1 = 20.
+y0 = -15.
+y1 = 15.
 
 hd = 1. #Depth [m]
 ad = 0.4 #height of the moving object [m]
@@ -35,7 +35,7 @@ c0 = (h0*g)**(0.5)
 epsilon = a0/h0
 
 #Other Parameters
-save = False
+save = True
 ploting = True
 
 #Scaled parameters to solve the dimensionless problem
@@ -53,8 +53,8 @@ hd = hd/h0 #depth
 ad = ad/a0 #height of the moving object
 
 #Define the profil of the moving seabed
-vmax = (hd*g)**(0.5) #Speed
-U = a0/(c0*h0)*vmax #Rescaled speed
+vmax = 1.2*(hd*g)**(0.5) #Speed
+U = h0/(c0*a0)*vmax #Rescaled speed
 vObject = Expression(("U","0.0"), U=U, c0=c0)
 seabed = 'hd - 0.5*lambda0/10.*(x[1]>2./lambda0 ? 1. : 0.)*(x[1]-2./lambda0) + 0.5*lambda0/10.*(x[1]<(-2./lambda0) ? 1. : 0.)*(x[1]+2./lambda0)'
 movigObject = ' - (x[1]>0 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. - tanh(lambda0*x[1]-2.))*(tanh(10*(1. - lambda0*x[0])) + tanh(lambda0*x[0] + 1)) ' \
@@ -64,8 +64,8 @@ h = Expression(bottom, hd=hd, ad=ad, epsilon=epsilon, bh=bh, lambda0=lambda0, vm
 
 #Saving parameters
 if (save==True):
-    fsfile = File("results/SWEOR/FS.pvd") #To save data in a file
-    hfile = File("results/SWEOR/MB.pvd") #To save data in a file
+    fsfile = File("results/PeregrineOR/FS.pvd") #To save data in a file
+    hfile = File("results/PeregrineOR/MB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -112,6 +112,9 @@ v,xi = as_vector((wt[0],wt[1])),wt[2]
 
 F = 1./dt*inner(u-u_prev,v)*dx + inner(grad(u)*(epsilon*u),v)*dx \
     + inner(v,grad(eta))*dx
+
+F += sigma**2.*1./dt*div(h*(u-u_prev))*div(h*v/2.)*dx \
+      - sigma**2.*1./dt*div(u-u_prev)*div(h*h*v/6.)*dx
 
 F += 1./dt*(eta-eta_prev)*xi*dx + div((h+epsilon*eta)*u)*xi*dx
 
