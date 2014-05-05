@@ -7,23 +7,23 @@ import numpy as np
 from dolfin import *
 
 #Mesh discretization
-Ny = 30
-Nx = 60
+Ny = 15
+Nx = 50
 
 #Physical values for the physical problem
 g = 9.8 #Gravity [m.s^(-2)]
 
-dt = 0.02 #timestep [s]
+dt = 0.05 #timestep [s]
 t = 0.0 #time initialization
 end = 60.0 #Final Time
 
-x0 = -20. #Domain [m]
-x1 = 20.
-y0 = -15.
-y1 = 15.
+x0 = -10. #Domain [m]
+x1 = 10.
+y0 = -2.
+y1 = 2.
 
 hd = 1. #Depth [m]
-ad = 0.4 #height of the moving object [m]
+ad = 0.5 #height of the moving object [m]
 bh = 0.7 #width of the moving object 
 
 #Scaling parameters
@@ -35,7 +35,7 @@ c0 = (h0*g)**(0.5)
 epsilon = a0/h0
 
 #Other Parameters
-save = True
+save = False
 ploting = True
 
 #Scaled parameters to solve the dimensionless problem
@@ -53,19 +53,25 @@ hd = hd/h0 #depth
 ad = ad/a0 #height of the moving object
 
 #Define the profil of the moving seabed
-vmax = 1.2*(hd*g)**(0.5) #Speed
+vmax = (hd*h0*g)**(0.5) #Speed
 U = h0/(c0*a0)*vmax #Rescaled speed
 vObject = Expression(("U","0.0"), U=U, c0=c0)
+"""
 seabed = 'hd - 0.5*lambda0/10.*(x[1]>2./lambda0 ? 1. : 0.)*(x[1]-2./lambda0) + 0.5*lambda0/10.*(x[1]<(-2./lambda0) ? 1. : 0.)*(x[1]+2./lambda0)'
 movigObject = ' - (x[1]>0 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. - tanh(lambda0*x[1]-2.))*(tanh(10*(1. - lambda0*x[0])) + tanh(lambda0*x[0] + 1)) ' \
             + ' - (x[1]<=0 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. + tanh(lambda0*x[1]+2.))*(tanh(10*(1. - lambda0*x[0])) + tanh(lambda0*x[0] + 1)) ' 
-bottom = seabed + movigObject 
+"""
+
+seabed = 'hd'
+movingObject = '- 0.25*1/pow(cosh(pow(3*0.5,0.5)*lambda0*x[0]/2),2)'
+#movingObject = '- epsilon*ad*0.5*(tanh(10*(1. - lambda0*x[0])) + tanh(lambda0*x[0] + 1)) '
+bottom = seabed + movingObject 
 h = Expression(bottom, hd=hd, ad=ad, epsilon=epsilon, bh=bh, lambda0=lambda0, vmax=vmax, c0=c0, t=0)
 
 #Saving parameters
 if (save==True):
-    fsfile = File("results/PeregrineOR/FS.pvd") #To save data in a file
-    hfile = File("results/PeregrineOR/MB.pvd") #To save data in a file
+    fsfile = File("results/PeregrineSolitaryWave5/FS.pvd") #To save data in a file
+    hfile = File("results/PeregrineSolitaryWave5/MB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -91,7 +97,9 @@ n=FacetNormal(Th) #Normal Vector
 
 ###############DEFINITION OF THE WEAK FORMULATION############
 u_0 = Expression(("-2*U", "0.0"), U=U) #Initialisation of the velocity
-eta_0 = Expression("0.0") #Initialisation of the free surface
+#eta_0 = Expression("ad*1/pow(cosh(pow(3*0.5,0.5)*lambda0*x[0]/2),2)",epsilon=epsilon, ad=ad,lambda0=lambda0) #Initialisation of the free surface
+
+eta_0 = Expression("0.0")
 
 w_prev = Function(E)
 (u_prev, eta_prev) = w_prev.split()

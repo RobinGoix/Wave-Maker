@@ -8,20 +8,20 @@ import numpy as np
 from dolfin import *
 
 #Mesh discretization
-Ny = 64
-Nx = 128
+Ny = 40
+Nx = 80
 
 #Physical values for the physical problem
 g = 9.8 #Gravity [m.s^(-2)]
 
-dt = 0.02 #timestep [s]
+dt = 0.05 #timestep [s]
 t = 0.0 #time initialization
 end = 60.0 #Final Time
 
-x0 = -2. #Domain [m]
-x1 = 6.
-y0 = -6.
-y1 = 6.
+x0 = -4. #Domain [m]
+x1 = 30.
+y0 = -15.
+y1 = 15.
 
 hd = 1. #Depth [m]
 ad = 0.4 #height of the moving object [m]
@@ -50,6 +50,15 @@ x1 = x1/lambda0
 y0 = y0/lambda0
 y1 = y1/lambda0
 Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny,'crossed')
+
+#Refine Mesh along the object's trajectory
+cell_markers = CellFunction("bool", Th)
+cell_markers.set_all(False)
+for cell in cells(Th):
+    p = cell.midpoint()
+    if p.y() > -2.5/20 and p.y() < 2.5/20 :
+        cell_markers[cell] = True   
+Th = refine(Th, cell_markers)
 
 dt = dt*c0/lambda0 #Time step
 t = t*c0/lambda0 #Time initialization
@@ -83,9 +92,11 @@ if (moving == True):
     #traj = 'xfinal/2.*(tanh((lambda0/c0*t-2.)*2*vmax/xfinal)+1.-tanh(4.*2.*3./30.))'
     seabed = 'hd - 0.5/4.*(x[1]>2./lambda0 ? 1. : 0.)*(lambda0*x[1]-2.) + 0.5/4.*(x[1]<(-2./lambda0) ? 1. : 0.)*(lambda0*x[1]+2.)'
     traj = 'vmax*lambda0/c0*t*exp(-0.001/pow(lambda0/c0*t,2))'
-    movigObject = ' - (x[1]>0 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. - tanh(lambda0*x[1]-2.))*(tanh(10*(1. - lambda0*x[0] + ' + traj + ')) + tanh(lambda0*x[0] - ' + traj + ' + 1)) ' \
+    movingObject = ' - (x[1]>0 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. - tanh(lambda0*x[1]-2.))*(tanh(10*(1. - lambda0*x[0] + ' + traj + ')) + tanh(lambda0*x[0] - ' + traj + ' + 1)) ' \
                   + ' - (x[1]<=0 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. + tanh(lambda0*x[1]+2.))*(tanh(10*(1. - lambda0*x[0] + ' + traj + ')) + tanh(lambda0*x[0] - ' + traj + ' + 1)) ' 
-    bottom = seabed + movigObject
+    #seabed = 'hd'
+    #movingObject = '- 0.25*1/pow(cosh(pow(3*0.5,0.5)*(lambda0*x[0] - lambda0/c0*vmax*t)/2),2)'
+    bottom = seabed + movingObject
     
     h_prev = Expression(bottom, hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, lambda0=lambda0, vmax=vmax, xfinal=xfinal, c0=c0, t=0)
     h = h_prev
