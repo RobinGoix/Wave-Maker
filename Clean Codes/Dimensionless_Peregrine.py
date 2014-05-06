@@ -8,8 +8,8 @@ import numpy as np
 from dolfin import *
 
 #Mesh discretization
-Ny = 40
-Nx = 80
+Ny = 60
+Nx = 100
 
 #Physical values for the physical problem
 g = 9.8 #Gravity [m.s^(-2)]
@@ -19,7 +19,7 @@ t = 0.0 #time initialization
 end = 60.0 #Final Time
 
 x0 = -4. #Domain [m]
-x1 = 30.
+x1 = 40.
 y0 = -15.
 y1 = 15.
 
@@ -40,7 +40,7 @@ c0 = (h0*g)**(0.5)
 epsilon = a0/h0
 
 #Other Parameters
-save = False
+save = True
 moving = True
 ploting = True
 
@@ -49,16 +49,24 @@ x0 = x0/lambda0
 x1 = x1/lambda0
 y0 = y0/lambda0
 y1 = y1/lambda0
-Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny,'crossed')
+Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
 
 #Refine Mesh along the object's trajectory
 cell_markers = CellFunction("bool", Th)
 cell_markers.set_all(False)
 for cell in cells(Th):
     p = cell.midpoint()
-    if p.y() > -2.5/20 and p.y() < 2.5/20 :
+    if p.y() > -3.5/20 and p.y() < 3.5/20 :
         cell_markers[cell] = True   
 Th = refine(Th, cell_markers)
+
+cell_markers2 = CellFunction("bool", Th)
+cell_markers2.set_all(False)
+for cell in cells(Th):
+    p = cell.midpoint()
+    if p.y() > -3.5/20 and p.y() < 3.5/20 :
+        cell_markers2[cell] = True   
+Th = refine(Th, cell_markers2)
 
 dt = dt*c0/lambda0 #Time step
 t = t*c0/lambda0 #Time initialization
@@ -90,10 +98,10 @@ if (moving == True):
     vmax = (hd*g)**(0.5) #Speed
     #traj = '(c0*vfinal*(log(tanh((3*lambda0*t)/c0 - 6) + 1) - log(tanh((3*lambda0*t)/c0 - 12) + 1) - log(tanh((3*lambda0*t0)/c0 - 6) + 1) + log(tanh((3*lambda0*t0)/c0 - 12) + 1)))/(6*lambda0)'
     #traj = 'xfinal/2.*(tanh((lambda0/c0*t-2.)*2*vmax/xfinal)+1.-tanh(4.*2.*3./30.))'
-    seabed = 'hd - 0.5/4.*(x[1]>2./lambda0 ? 1. : 0.)*(lambda0*x[1]-2.) + 0.5/4.*(x[1]<(-2./lambda0) ? 1. : 0.)*(lambda0*x[1]+2.)'
+    seabed = 'hd - 0.5/7.*(x[1]>4./lambda0 ? 1. : 0.)*(lambda0*x[1]-4.) + 0.5/7.*(x[1]<(-4./lambda0) ? 1. : 0.)*(lambda0*x[1]+4.)'
     traj = 'vmax*lambda0/c0*t*exp(-0.001/pow(lambda0/c0*t,2))'
-    movingObject = ' - (x[1]>0 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. - tanh(lambda0*x[1]-2.))*(tanh(10*(1. - lambda0*x[0] + ' + traj + ')) + tanh(lambda0*x[0] - ' + traj + ' + 1)) ' \
-                  + ' - (x[1]<=0 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. + tanh(lambda0*x[1]+2.))*(tanh(10*(1. - lambda0*x[0] + ' + traj + ')) + tanh(lambda0*x[0] - ' + traj + ' + 1)) ' 
+    movingObject = ' - (x[1]<3/lambda0 ? 1. : 0.)*(x[1]>0 ? 1. : 0.)*(lambda0*x[0]-'+traj+'>-6 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. - tanh(0.5*lambda0*x[1]-2.))*(tanh(2*(1. - (lambda0*x[0] - ' + traj + ')-pow(lambda0*x[1],2)/2)) + tanh((lambda0*x[0] - ' + traj + ')+pow(lambda0*x[1],2)/2 + 1)) ' \
+                  + ' - (x[1]>-3/lambda0 ? 1. : 0.)*(x[1]<=0 ? 1. : 0.)*(lambda0*x[0]-'+traj+'>-6 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. + tanh(0.5*lambda0*x[1]+2.))*(tanh(2*(1. - (lambda0*x[0] - ' + traj + ')-pow(lambda0*x[1],2)/2)) + tanh((lambda0*x[0] - ' + traj + ')+pow(lambda0*x[1],2)/2 + 1)) ' 
     #seabed = 'hd'
     #movingObject = '- 0.25*1/pow(cosh(pow(3*0.5,0.5)*(lambda0*x[0] - lambda0/c0*vmax*t)/2),2)'
     bottom = seabed + movingObject
@@ -109,8 +117,8 @@ else:
   
 #Saving parameters
 if (save==True):
-    fsfile = File("results/Peregrinetraj2/FS.pvd") #To save data in a file
-    hfile = File("results/Peregrinetraj2/MB.pvd") #To save data in a file
+    fsfile = File("results/Objectshape1/FS.pvd") #To save data in a file
+    hfile = File("results/Objectshape1/MB.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
@@ -188,7 +196,7 @@ while (t <= end):
 
     if (ploting==True):
         #plot(eta_,rescale=True, title = "Free Surface")
-        plot(h_next,rescale=False, title = "Seabed", axis = True)
+        plot(h_next,rescale=False, title = "Seabed")
 
     if (save==True):
         fsfile << eta_ #Save heigth
