@@ -8,8 +8,8 @@ import numpy as np
 from dolfin import *
 
 #Mesh discretization
-Ny = 60
-Nx = 80
+Ny = 30
+Nx = 40
 
 #Physical values for the physical problem
 g = 9.8 #Gravity [m.s^(-2)]
@@ -76,6 +76,16 @@ for cell in cells(Th):
         cell_markers3[cell] = True   
 Th = refine(Th, cell_markers3)
 
+cell_markers4 = CellFunction("bool", Th)
+cell_markers4.set_all(False)
+
+for cell in cells(Th):
+    p = cell.midpoint()
+    if p.y() > -2.5/20 and p.y() < 2.5/20 :
+        cell_markers4[cell] = True
+        
+Th = refine(Th, cell_markers4)
+
 plot(Th, interactive=True)
 
 dt = dt*c0/lambda0 #Time step
@@ -109,7 +119,8 @@ if (moving == True):
     #traj = '(c0*vfinal*(log(tanh((3*lambda0*t)/c0 - 6) + 1) - log(tanh((3*lambda0*t)/c0 - 12) + 1) - log(tanh((3*lambda0*t0)/c0 - 6) + 1) + log(tanh((3*lambda0*t0)/c0 - 12) + 1)))/(6*lambda0)'
     #traj = 'xfinal/2.*(tanh((lambda0/c0*t-2.)*2*vmax/xfinal)+1.-tanh(4.*2.*3./30.))'
     seabed = 'hd - 0.5/10.*(x[1]>4./lambda0 ? 1. : 0.)*(lambda0*x[1]-4.) + 0.5/10.*(x[1]<(-4./lambda0) ? 1. : 0.)*(lambda0*x[1]+4.)'
-    traj = 'vmax*lambda0/c0*t*exp(-0.001/pow(lambda0/c0*t,2))'
+    #traj = 'vmax*lambda0/c0*t*exp(-0.001/pow(lambda0/c0*t,2))'
+    traj = 'vmax*lambda0/c0*t*exp(-4./(lambda0/c0*t))'
     movingObject = ' - (x[1]<3/lambda0 ? 1. : 0.)*(x[1]>0 ? 1. : 0.)*(lambda0*x[0]-'+traj+'>-6 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. - tanh(0.5*lambda0*x[1]-2.))*(tanh(10*(1. - (lambda0*x[0] - ' + traj + ')-pow(lambda0*x[1],2)/5)) + tanh(2*((lambda0*x[0] - ' + traj + ')+pow(lambda0*x[1],2)/5 + 0.5))) ' \
                   + ' - (x[1]>-3/lambda0 ? 1. : 0.)*(x[1]<=0 ? 1. : 0.)*(lambda0*x[0]-'+traj+'>-6 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. + tanh(0.5*lambda0*x[1]+2.))*(tanh(10*(1. - (lambda0*x[0] - ' + traj + ')-pow(lambda0*x[1],2)/5)) + tanh(2*((lambda0*x[0] - ' + traj + ')+pow(lambda0*x[1],2)/5 + 0.5))) ' 
     #seabed = 'hd'
