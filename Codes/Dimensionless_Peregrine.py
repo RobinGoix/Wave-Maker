@@ -2,9 +2,7 @@
 This code solves the Boussinesq System derived by Peregrine for a seabed of constant depth with a moving object.
 
 """
-import scipy.integrate as si
-import matplotlib.pyplot as plt
-import numpy as np
+
 from dolfin import *
 
 #Mesh discretization
