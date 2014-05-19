@@ -96,36 +96,14 @@ xh = xh/lambda0 #start position of the moving object
 
 #Define the profil of the moving seabed
 if (moving == True):
-    #Parameters for the velocity
-    """
-    p1=4
-    d1=1.
-    p2=3.
-    d2=4.
-    vfinal = 1.5 #Maximal velocity of the moving object [m.s^(-1)]
-    velocity = lambda tt: 0.5*vfinal*(tanh(p1*(lambda0/c0*tt-d1))+tanh(p2*(d2-(lambda0/c0)*tt)))
-    vh = velocity(dt)
-
-    #Plotting velocity curve
-    r=np.arange(t,end,dt)
-    plt.plot(r,map(velocity, r))
-    plt.show()
-    """
-
-    xfinal = 30. #Final Position of the moving object [m]
     vmax = (hd*g)**(0.5) #Speed
-    #traj = '(c0*vfinal*(log(tanh((3*lambda0*t)/c0 - 6) + 1) - log(tanh((3*lambda0*t)/c0 - 12) + 1) - log(tanh((3*lambda0*t0)/c0 - 6) + 1) + log(tanh((3*lambda0*t0)/c0 - 12) + 1)))/(6*lambda0)'
-    #traj = 'xfinal/2.*(tanh((lambda0/c0*t-2.)*2*vmax/xfinal)+1.-tanh(4.*2.*3./30.))'
     seabed = 'hd - 0.5/10.*(x[1]>4./lambda0 ? 1. : 0.)*(lambda0*x[1]-4.) + 0.5/10.*(x[1]<(-4./lambda0) ? 1. : 0.)*(lambda0*x[1]+4.)'
-    #traj = 'vmax*lambda0/c0*t*exp(-0.001/pow(lambda0/c0*t,2))'
     traj = 'vmax*lambda0/c0*t*exp(-4./(lambda0/c0*t))'
     movingObject = ' - (x[1]<3/lambda0 ? 1. : 0.)*(x[1]>0 ? 1. : 0.)*(lambda0*x[0]-'+traj+'>-6 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. - tanh(0.5*lambda0*x[1]-2.))*(tanh(10*(1. - (lambda0*x[0] - ' + traj + ')-pow(lambda0*x[1],2)/5)) + tanh(2*((lambda0*x[0] - ' + traj + ')+pow(lambda0*x[1],2)/5 + 0.5))) ' \
                   + ' - (x[1]>-3/lambda0 ? 1. : 0.)*(x[1]<=0 ? 1. : 0.)*(lambda0*x[0]-'+traj+'>-6 ? 1. : 0.)*epsilon*ad*0.5*0.5*(1. + tanh(0.5*lambda0*x[1]+2.))*(tanh(10*(1. - (lambda0*x[0] - ' + traj + ')-pow(lambda0*x[1],2)/5)) + tanh(2*((lambda0*x[0] - ' + traj + ')+pow(lambda0*x[1],2)/5 + 0.5))) ' 
-    #seabed = 'hd'
-    #movingObject = '- 0.25*1/pow(cosh(pow(3*0.5,0.5)*(lambda0*x[0] - lambda0/c0*vmax*t)/2),2)'
     bottom = seabed + movingObject
     
-    h_prev = Expression(bottom, hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, lambda0=lambda0, vmax=vmax, xfinal=xfinal, c0=c0, t=0)
+    h_prev = Expression(bottom, hd=hd, ad=ad, epsilon=epsilon, bh=bh, lambda0=lambda0, vmax=vmax, c0=c0, t=0)
     h = h_prev
     h_next = h_prev
     
@@ -209,7 +187,7 @@ while (t <= end):
         #intvh=si.quad(velocity, 0, t)
         #intvh=intvh[0] 
         h_new = Expression(bottom, \
-            hd=hd, ad=ad, epsilon=epsilon, xh=xh, bh=bh, xfinal=xfinal, vmax=vmax, lambda0=lambda0, t=t, c0=c0)
+            hd=hd, ad=ad, epsilon=epsilon, bh=bh, vmax=vmax, lambda0=lambda0, t=t, c0=c0)
         h_new = interpolate(h_new,H)
         h_next.assign(h_new)
 

@@ -71,13 +71,13 @@ if (save==True):
 V = VectorFunctionSpace(Th,"Lagrange",2)
 #Height
 H = FunctionSpace(Th, "Lagrange", 1) 
-E = V * H
+E = MixedFunctionSpace([V,H])
 
 #Dirichlet BC
 boundary_parts = \
   MeshFunction("uint", Th, Th.topology().dim()-1)
 
-"""
+
 def Slip_boundary(x, on_boundary):
     return on_boundary and \
             (x[1] > y1 - DOLFIN_EPS or x[1] < y0 + DOLFIN_EPS)
@@ -102,7 +102,7 @@ YIn = DirichletBC(V.sub(1),  Expression("0.0"), boundary_parts, 2)
 No_Slip_In = DirichletBC(E.sub(1),  Expression("0.0"), boundary_parts, 2)
 
 bc = [Slip, XOut, YOut, XIn, YIn, No_Slip_In, No_Slip_Out]
-"""
+
 
 
 

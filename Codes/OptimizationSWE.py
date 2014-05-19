@@ -4,19 +4,20 @@ This algorithm aim at optimizing an underwater object shape to create the smalle
 
 from dolfin import *
 from dolfin_adjoint import * 
-import pyipopt
+#import pyipopt
 
 def main(ad):  
-    Ny = 3
+    Ny = 2
     Nx = 200
     
-    x0 = -1. #Domain [m]
+    x0 = -5. #Domain [m]
     x1 = 15.
     y0 = -0.5
     y1 = 0.5
     
     g = 9.8
     hd = 1. #Depth [m]
+    #ad = 0.4 #Object's height
     
     u_0 = Expression(("0.0", "0.0")) #Initialisation of the velocity
     eta_0 = Expression("0.0") #Initialisation of the free surface
@@ -33,14 +34,15 @@ def main(ad):
     save = False
     ploting = True
     
-    delta_t = 0.1 #timestep [s]
-    t = 0.0 #time initialization
-    end = 3.0 #Final Time
+    delta_t = 0.05 #timestep [s]
+    t = 0.15 #time initialization
+    end = 1.0 #Final Time
     delta_t = delta_t*c0/lambda0 #Time step
     t = t*c0/lambda0 #Time initialization
     end = end*c0/lambda0 #Final time
 
     hd = hd/h0 #depth
+    #ad = ad/a0 #Object's height
 
     #Define the profil of the moving seabed
     vmax = (hd*g)**(0.5) #Speed
@@ -54,22 +56,16 @@ def main(ad):
     
     seabed = 'hd'
     traj = 'vmax*lambda0/c0*t*exp(-0.5/(lambda0/c0*t))'
-    movingObject1 = 'exp(-pow((lambda0*x[0]-'+traj+')/0.3,2))'
-    movingObject2 = 'exp(-pow((lambda0*x[0]+1-'+traj+')/0.3,2))'
+    movingObject = 'ad*0.5*(tanh(p1*(lambda0*x[0]-'+traj+'))+tanh(p2*(1-lambda0*x[0]+'+traj+')))'
+    movingObject = '- (' + movingObject + ' > 0. ? ' + movingObject + ' : 0. )'
 
     D = Expression(seabed,hd=hd)
-
-    zeta1 = Expression('-' + movingObject1, hd=hd, epsilon=epsilon, lambda0=lambda0, vmax=vmax, c0=c0, t=0)
-    zeta1_prev = zeta1
-    zeta1_next = zeta1_prev
+    #zeta = Expression(movingObject, hd=hd, epsilon=epsilon, lambda0=lambda0, vmax=vmax, c0=c0, t=0, p1=p1, p2=p2, ad=ad)
+    x = triangle.x
+    zeta = ad*0.5*(tanh(p1*(lambda0*x[0]-vmax*lambda0/c0*t*exp(-0.5/(lambda0/c0*t))))+tanh(p2*(1-lambda0*x[0]+vmax*lambda0/c0*t*exp(-0.5/(lambda0/c0*t)))))
+    zeta_prev = zeta
+    zeta_next = zeta
     
-    zeta2 = Expression('-' + movingObject2, hd=hd, epsilon=epsilon, lambda0=lambda0, vmax=vmax, c0=c0, t=0)
-    zeta2_prev = zeta2
-    zeta2_next = zeta2_prev
-    
-    zeta = Expression('0.4*' + movingObject1 + ' + (1.-0.4)*' + movingObject2 , hd=hd, epsilon=epsilon, lambda0=lambda0, vmax=vmax, c0=c0, t=0)
-    zeta_new = Expression('0.4*' + movingObject1 + ' + (1.-0.4)*' + movingObject2 , hd=hd, epsilon=epsilon, lambda0=lambda0, vmax=vmax, c0=c0, t=0)
-
     #Saving parameters
     if (save==True):
         fsfile = File("results/Objectshape1/FS.pvd") #To save data in a file
@@ -106,32 +102,23 @@ def main(ad):
     wt = TestFunction(E)
     v,xi = as_vector((wt[0],wt[1])),wt[2]
     D = interpolate(D,H)
-    zeta = interpolate(zeta,H)
-    zeta_new = interpolate(zeta_new,H)
     
-    zeta1_prev = interpolate(zeta1_prev,H)
-    zeta1 = interpolate(zeta1,H)
-    zeta1_next = interpolate(zeta1_next,H)
-    
-    zeta2_prev = interpolate(zeta2_prev,H)
-    zeta2 = interpolate(zeta2,H)
-    zeta2_next = interpolate(zeta2_next,H)
-
-    zeta1_t = (zeta1-zeta1_prev)/delta_t
-    zeta1_tt = (zeta1_next-2.*zeta1+zeta1_prev)/delta_t**2
-    
-    zeta2_t = (zeta2-zeta2_prev)/delta_t
-    zeta2_tt = (zeta2_next-2.*zeta2+zeta2_prev)/delta_t**2
+    #zeta = interpolate(zeta,H)
+    #zeta_next = interpolate(zeta_next,H)
+    #zeta_prev = interpolate(zeta_prev,H)
+        
+    zeta_t = (zeta-zeta_prev)/delta_t
+    zeta_tt = (zeta_next-2.*zeta+zeta_prev)/delta_t**2
 
     F = 1./delta_t*inner(u-u_prev,v)*dx + epsilon*inner(grad(u)*u,v)*dx \
-        - div(v)*eta*dx
+        - div(v)*eta*dx + 0.000000001*ad*xi*dx
 
-    F += sigma**2.*1./delta_t*div((D+epsilon*(ad*zeta1+(1.-ad)*zeta2))*(u-u_prev))*div((D + epsilon*(ad*zeta1+(1.-ad)*zeta2))*v/2.)*dx \
-      - sigma**2.*1./delta_t*div(u-u_prev)*div((D + epsilon*(ad*zeta1+(1.-ad)*zeta2))**2*v/6.)*dx \
-      + sigma**2.*(ad*zeta1_tt+(1.-ad)*zeta2_tt)*div((D + epsilon*(ad*zeta1+(1.-ad)*zeta2))*v/2.)*dx
+    F += sigma**2.*1./delta_t*div((D+epsilon*zeta)*(u-u_prev))*div((D+epsilon*zeta)*v/2.)*dx \
+            - sigma**2.*1./delta_t*div(u-u_prev)*div((D+epsilon*zeta)**2*v/6.)*dx \
+            + sigma**2.*zeta_tt*div((D+epsilon*zeta)*v/2.)*dx
 
-    F += 1./delta_t*(eta-eta_prev)*xi*dx + (ad*zeta1_t+(1.-ad)*zeta2_t)*xi*dx \
-        - inner(u,grad(xi))*(epsilon*eta+D+epsilon*(ad*zeta1+(1.-ad)*zeta2))*dx 
+    F += 1./delta_t*(eta-eta_prev)*xi*dx + zeta_t*xi*dx \
+        - inner(u,grad(xi))*(epsilon*eta+(D+epsilon*zeta))*dx 
         
     w_ = Function(E, name="w^{n+1}")
     (u_, eta_) = w_.split()
@@ -142,27 +129,15 @@ def main(ad):
         solve(F==0, w_, bc) #Solve the variational form
         w_prev.assign(w_) 
         t += float(delta_t)
-        zeta1_prev.assign(zeta1)
-        zeta1.assign(zeta1_next)
-        zeta1_new = Expression('-' + movingObject1, \
-            hd=hd, epsilon=epsilon, vmax=vmax, lambda0=lambda0, t=t, c0=c0)
-        zeta1_new = interpolate(zeta1_new,H)
-        zeta1_next.assign(zeta1_new)
-        
-        zeta2_prev.assign(zeta2)
-        zeta2.assign(zeta2_next)
-        zeta2_new = Expression('-' + movingObject2, \
-            hd=hd, epsilon=epsilon, vmax=vmax, lambda0=lambda0, t=t, c0=c0)
-        zeta2_new = interpolate(zeta2_new,H)
-        zeta2_next.assign(zeta2_new)
-        
-        zeta.assign(zeta_new) 
-        zeta_new = Expression('0.4*' + movingObject1 + ' + (1.-0.4)*' + movingObject2 , \
-             hd=hd, epsilon=epsilon, lambda0=lambda0, vmax=vmax, c0=c0, t=t)
-        
+        zeta = ad*0.5*(tanh(p1*(lambda0*x[0]-vmax*lambda0/c0*t*exp(-0.5/(lambda0/c0*t))))+tanh(p2*(1-lambda0*x[0]+vmax*lambda0/c0*t*exp(-0.5/(lambda0/c0*t)))))
+        zeta_prev = ad*0.5*(tanh(p1*(lambda0*x[0]-vmax*lambda0/c0*(t-delta_t)*exp(-0.5/(lambda0/c0*(t-delta_t)))))+tanh(p2*(1-lambda0*x[0]+vmax*lambda0/c0*(t-delta_t)*exp(-0.5/(lambda0/c0*(t-delta_t))))))
+        zeta_next = ad*0.5*(tanh(p1*(lambda0*x[0]-vmax*lambda0/c0*(t+delta_t)*exp(-0.5/(lambda0/c0*(t+delta_t)))))+tanh(p2*(1-lambda0*x[0]+vmax*lambda0/c0*(t+delta_t)*exp(-0.5/(lambda0/c0*(t+delta_t))))))
+        zeta_t = (zeta-zeta_prev)/delta_t
+        zeta_tt = (zeta_next-2.*zeta+zeta_prev)/delta_t**2
+
         if (ploting==True):
             plot(eta_,rescale=True, title = "Free Surface")
-            plot(zeta,rescale=False, title = "Seabed")
+            #plot(zeta, Th, rescale=False, title = "Seabed")
 
         if (save==True):
             fsfile << eta_ #Save heigth
@@ -173,15 +148,20 @@ def main(ad):
 
 
 if __name__ == "__main__":
-    ad = Constant(0.1)  #Initialisation of the value to be optimized
+    p1 = Constant(5.)  #Initialisation of the value to be optimized
+    p2 = Constant(1.)
+    ad = Constant(0.1)
     #ad_new = Constant(1.)
     w_ = main(ad)   #Corresponding solution of Peregrine
-    J = Functional(inner(w_[2], w_[2])*dx*dt[FINISH_TIME])  #Cost function
+    J = Functional(-1000000*inner(w_[2], w_[2])*dx*dt[FINISH_TIME])  #Cost function
     #dJdad = compute_gradient(J, ScalarParameter(ad))    #Gradient of the cost function
-    m = ScalarParameter(ad)
-    reduced_functional = ReducedFunctional(J, m)
-    m_opt = minimize(reduced_functional)
-    print(float(m_opt))
+    m1 = ScalarParameter(ad)
+    #m2 = ScalarParameter(p2)
+    reduced_functional = ReducedFunctional(J, m1)
+    print('reduced_functional = ', type(reduced_functional))
+    #print('type([m1,m2]) = ', type([m1,m2]))
+    m_opt = minimize(reduced_functional, bounds=(0.0,0.5))
+    print('m_opt = ', float(m_opt))
     
     
     """
