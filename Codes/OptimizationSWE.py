@@ -53,7 +53,7 @@ def main(ad):
     y0 = y0/lambda0
     y1 = y1/lambda0
     Th = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
-    
+    plot(Th, interactive=True)
     seabed = 'hd'
     traj = 'vmax*lambda0/c0*t*exp(-0.5/(lambda0/c0*t))'
     movingObject = 'ad*0.5*(tanh(p1*(lambda0*x[0]-'+traj+'))+tanh(p2*(1-lambda0*x[0]+'+traj+')))'
@@ -120,12 +120,13 @@ def main(ad):
     F += 1./delta_t*(eta-eta_prev)*xi*dx + zeta_t*xi*dx \
         - inner(u,grad(xi))*(epsilon*eta+(D+epsilon*zeta))*dx 
         
-    w_ = Function(E, name="w^{n+1}")
-    (u_, eta_) = w_.split()
-    F = action(F, w_)   
 
     ###############################ITERATIONS##########################
     while (t <= end):
+        w_ = Function(E, name="w^{n+1}")
+        (u_, eta_) = w_.split()
+        F = action(F, w_)   
+
         solve(F==0, w_, bc) #Solve the variational form
         w_prev.assign(w_) 
         t += float(delta_t)
