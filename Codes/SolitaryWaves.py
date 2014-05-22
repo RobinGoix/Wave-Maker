@@ -140,26 +140,27 @@ F += 1./dt*(eta-eta_prev)*xi*dx - inner(u,grad(xi))*(epsilon*eta+h)*dx
      
     
 w_ = Function(E)
-(u_, eta_) = w_.split()
+
 F = action(F, w_)   
 traj = 0.
 delta_x = 80./2048.
 ###############################ITERATIONS##########################
 while (t <= end):
     solve(F==0, w_, bc) #Solve the variational form
+    (u_, eta_) = w_.split(True)
     u_prev.assign(u_) #u_prev = u_
     eta_prev.assign(eta_) #eta_prev = eta_
     t += float(dt)
     print(t)
 
     if (ploting==True):
-        plot(eta_,rescale=True, title = "Free Surface")
+        plot(eta_prev,rescale=True, title = "Free Surface")
 
     if (save==True):
         fsfile << eta_ #Save heigth
     
     #Computing eta_e the translated eta_0
-    traj += w_.vector().max()*delta_x #Updating the trajectory of the soliton
+    traj += u_.vector().max()*delta_x #Updating the trajectory of the soliton
     etae = eta0 #Create the array of dimension 2048
     N_traj = int(floor(traj/delta_x))
     j=2047
