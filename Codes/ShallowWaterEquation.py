@@ -4,13 +4,13 @@ with a constant depth
 """
 
 from dolfin import *
-Nx = 64
-Ny = 64
+Nx = 50
+Ny = 50
 Th = UnitSquareMesh(Nx,Ny)
 
 #Define Parameters
 g = 9.8 #Gravity [m.s^(-2)]
-dt = Constant(0.0005) #Time step [s]
+dt = Constant(0.005) #Time step [s]
 t = 0.0	#Time initialization [s]
 end = 0.5 #Final time [s]
 bmarg = 1.e-3 + DOLFIN_EPS
@@ -21,24 +21,27 @@ h = Constant(0.1) #[m]
 #h = Expression("2-2*x[0]")
 
 if (save == True):
-  ufile = File("/home/robin/Documents/BCAM/FEniCS_Files/Simulations/SWE/SWECircle2/SWECircle2.pvd") #To save data in a file
+  ufile = File("results/SWESlippyBC/FS.pvd") #To save data in a file
 
 #Define functions spaces
 #Velocity
 V = VectorFunctionSpace(Th,"Lagrange",2)
 #Height
 H = FunctionSpace(Th, "Lagrange", 1) 
-E = V * H
+E = MixedFunctionSpace([V, H])
 
 #Dirichlet BC
 
-def NoSlip_boundary(x, on_boundary):
-        return on_boundary and \
-               (x[1] < bmarg or x[1] > 1- bmarg or \
-                x[0] < bmarg or x[0] > 1- bmarg)
-No_Slip = DirichletBC(E.sub(0), [0.0, 0.0], NoSlip_boundary)
+def X_Slip_boundary(x, on_boundary):
+        return on_boundary and (x[0] < bmarg or x[0] > 1- bmarg)
+           
+def Y_Slip_boundary(x, on_boundary):
+        return on_boundary and (x[1] < bmarg or x[1] > 1- bmarg)
+         
+Slip_X = DirichletBC(E.sub(0).sub(0), 0.0, X_Slip_boundary)
+Slip_Y = DirichletBC(E.sub(0).sub(1), 0.0, Y_Slip_boundary)
 
-bc = No_Slip
+bc = [Slip_X, Slip_Y]
 
 n=FacetNormal(Th) #Normal Vector
 
