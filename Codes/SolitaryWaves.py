@@ -16,9 +16,10 @@ Nx = 2047
 #Physical values for the physical problem
 g = 1. #Gravity [m.s^(-2)]
 
-dt = 0.02 #timestep [s]
+dt = 0.01 #timestep [s]
 t = 0.0 #time initialization
-end = 30.0 #Final Time
+end = 15.0 #Final Time
+N_iter = floor(end/dt)
 
 x0 = -40. #Domain [m]
 x1 = 40.
@@ -41,7 +42,7 @@ epsilon = a0/h0
 #Other Parameters
 save = False
 moving = False
-ploting = True
+ploting = False
 
 #Scaled parameters to solve the dimensionless problem
 x0 = x0/lambda0
@@ -72,7 +73,7 @@ if (save==True):
 V = VectorFunctionSpace(Th,"Lagrange",1)
 #Height
 H = FunctionSpace(Th, "Lagrange", 1) 
-E = V * H
+E = MixedFunctionSpace([V,H])
 
 #Dirichlet BC
 
@@ -108,11 +109,7 @@ u_initial = Function(H)
 u_initial.vector()[:]=u00
 u_0=Function(V)
 u_0=Expression(("u_initial","0.0"),u_initial=u_initial)
-"""
-plot(eta_0,Th)
-plot(u_0,Th)
-interactive()
-"""
+
 ###############DEFINITION OF THE WEAK FORMULATION############
 
 w_prev = Function(E)
@@ -120,8 +117,10 @@ w_prev = Function(E)
 
 u_prev = interpolate(u_0, V)
 
+
 eta_prev = interpolate(eta_0,H)
-eta_moved = interpolate(eta_0,H)
+eta_c_0 = interpolate(eta_0,H)
+eta_00 = interpolate(eta_0,H)
 h = interpolate(h,H)
 
 w = TrialFunction(E)
@@ -142,8 +141,8 @@ F += 1./dt*(eta-eta_prev)*xi*dx - inner(u,grad(xi))*(epsilon*eta+h)*dx
 w_ = Function(E)
 
 F = action(F, w_)   
-traj = 0.
-delta_x = 80./2048.
+#errorfile = File("results/SolitaryWaveDenys_dt=0.02/error.csv") #To save data in a file
+error_array = []
 ###############################ITERATIONS##########################
 while (t <= end):
     solve(F==0, w_, bc) #Solve the variational form
@@ -153,45 +152,41 @@ while (t <= end):
     t += float(dt)
     print(t)
 
-    if (ploting==True):
-        plot(eta_prev,rescale=True, title = "Free Surface")
-
     if (save==True):
         fsfile << eta_ #Save heigth
     
-    #Computing eta_e the translated eta_0
-    traj += u_.vector().max()*delta_x #Updating the trajectory of the soliton
-    etae = eta0 #Create the array of dimension 2048
-    N_traj = int(floor(traj/delta_x))
-    j=2047
+    #Computing eta_centered the translated of eta_
+    N_traj = np.argmax(eta_.vector()) -np.argmax(eta_initial.vector()) #Updating the trajectory of the soliton
+    eta_centered = np.zeros(4096) #Create the array of dimension 4096
+    j=4095
     while(j>=0):
-        if(j+N_traj <= 2047):
-            etae[j+N_traj] = eta0[j]
+        if(j+N_traj <= 4095):
+            eta_centered[j] = eta_.vector()[j+N_traj]
             #etae[j]=0
         j -= 1
     #Then we dedoublate the array
-    etaee = np.zeros(4096)
-    #print(eta)
-    k = 0
-    while(k<=4094):
-        k += 1
-        etaee[k] = etae[floor(k/2.)]
         
-    eta_e = Function(H)
-    eta_e.vector()[:] = etaee
-    eta_0_moved = Expression("eta_e",eta_e=eta_e)
-    eta_0_moved = interpolate(eta_0_moved,H)
+    eta_c = Function(H)
+    eta_c.vector()[:] = eta_centered
+    eta_moved = Expression("eta_c",eta_c=eta_c)
+    eta_moved = interpolate(eta_moved,H)
     
-    eta_moved.assign(eta_0_moved)
-    plot(eta_moved, title='Real Solution')
+    eta_c_0.assign(eta_moved)
+    
+    if (ploting==True):
+        plot(eta_prev,rescale=True, title = "Free Surface")
+        plot(eta_c_0, title='Solution translated')
     
     #Computing the error compare to the initial condition
-    errorfile = File("results/SolitaryWaveDenys_dt=0.02/error.pvd") #To save data in a file
-    error = inner(eta_ - eta_0_moved, eta_ - eta_0_moved)*dx 
-   # E = sqrt(assemble(error))/sqrt(assemble(inner(eta_0,eta_0)*dx))
-    #Other solution : difference des maximas
-    #errorfile << E
+
+    error = inner(eta_c_0 - eta_00, eta_c_0 - eta_00)*dx 
+    E = sqrt(assemble(error))/sqrt(assemble(inner(eta_00,eta_00)*dx))
+    error_array.append(E)
+    #print(error_array)
     
     
 
 ##############################END OF ITERATIONS#################################
+plt.plot(error_array, 'ro')
+plt.axis([0,N_iter,0,0.2])
+plt.show()
