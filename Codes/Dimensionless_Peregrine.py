@@ -175,9 +175,9 @@ F = action(F, w_)
 
 ###############################ITERATIONS##########################
 while (t <= end):
-    #solve(F==0, w_, bc) #Solve the variational form
-    #u_prev.assign(u_) #u_prev = u_
-    #eta_prev.assign(eta_) #eta_prev = eta_
+    solve(F==0, w_, bc) #Solve the variational form
+    u_prev.assign(u_) #u_prev = u_
+    eta_prev.assign(eta_) #eta_prev = eta_
     t += float(dt)
     print(t)
 
@@ -192,7 +192,7 @@ while (t <= end):
         h_next.assign(h_new)
 
     if (ploting==True):
-        #plot(eta_,rescale=True, title = "Free Surface")
+        plot(eta_,rescale=True, title = "Free Surface")
         plot(h_next,rescale=False, title = "Seabed")
 
     if (save==True):

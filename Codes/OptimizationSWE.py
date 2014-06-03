@@ -3,7 +3,7 @@ This algorithm aim at optimizing an underwater object shape to create the smalle
 """
 
 from dolfin import *
-from dolfin_adjoint import * 
+#from dolfin_adjoint import * 
 #import pyipopt
 
 def main(ad):  
@@ -111,7 +111,7 @@ def main(ad):
     zeta_tt = (zeta_next-2.*zeta+zeta_prev)/delta_t**2
 
     F = 1./delta_t*inner(u-u_prev,v)*dx + epsilon*inner(grad(u)*u,v)*dx \
-        - div(v)*eta*dx + 0.000000001*ad*xi*dx
+        - div(v)*eta*dx
 
     F += sigma**2.*1./delta_t*div((D+epsilon*zeta)*(u-u_prev))*div((D+epsilon*zeta)*v/2.)*dx \
             - sigma**2.*1./delta_t*div(u-u_prev)*div((D+epsilon*zeta)**2*v/6.)*dx \
@@ -119,7 +119,8 @@ def main(ad):
 
     F += 1./delta_t*(eta-eta_prev)*xi*dx + zeta_t*xi*dx \
         - inner(u,grad(xi))*(epsilon*eta+(D+epsilon*zeta))*dx 
-        
+
+
 
     ###############################ITERATIONS##########################
     while (t <= end):
