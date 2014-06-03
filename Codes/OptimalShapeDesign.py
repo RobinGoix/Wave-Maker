@@ -6,7 +6,7 @@ from dolfin import *
 from dolfin_adjoint import * 
 #import pyipopt
 
-
+#def main(zeta_initial):
 
 Nx = 75
 Ny = 55
@@ -104,23 +104,18 @@ Vmax = h0/a0*Vmax/c0 #Scaled maximal velocity
 #Time dependant velocity
 U = Expression(('Vmax*(1.+4.*lambda0/c0*t/pow((lambda0/c0*t+0.05),2))*exp(-4./(lambda0/c0*t + 0.05))','0.0'),\
                 Vmax=Vmax, lambda0=lambda0, c0=c0, t=0.0)
+U_ = Expression(('Vmax*(1.+4.*lambda0/c0*t/pow((lambda0/c0*t+0.05),2))*exp(-4./(lambda0/c0*t + 0.05))','0.0'),\
+                Vmax=Vmax, lambda0=lambda0, c0=c0, t=0.0)
 #Corresponding trajectory
-traj = 'Vmax*lambda0/c0*t*exp(-4./(lambda0/c0*t+0.05))'
+traj = 'epsilon*c0*Vmax*lambda0/c0*t*exp(-4./(lambda0/c0*t + 0.05))'
 
 #Initial Conditions
 u0 = Expression(("0.0", "0.0"))
 eta0 = Expression("0.0")
-movingObject = ' - (x[1]<3/lambda0 ? 1. : 0.)*(x[1]>0 ? 1. : 0.)*(lambda0*x[0]>-6 ? 1. : 0.)'\
-    +'*ad*0.5*0.5*(1. - tanh(0.5*lambda0*x[1]-2.))*(tanh(10*(1.-lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
-    +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' \
-    + ' - (x[1]>-3/lambda0 ? 1. : 0.)*(x[1]<=0 ? 1. : 0.)*(lambda0*x[0]>-6 ? 1. : 0.)'\
-    +'*ad*0.5*0.5*(1. + tanh(0.5*lambda0*x[1]+2.))*(tanh(10*(1. - lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
-    +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' 
-zeta0 = Expression(movingObject, ad=ad, c0=c0, hd=hd, lambda0=lambda0)
 
 filtre = '(lambda0*x[0] < 2 + '+traj+' ? 1. : 0.)*(lambda0*x[0] > -6 + '+traj+'? 1. : 0.)'\
         +'*(lambda0*x[1] < 3 ? 1. : 0.)*(lambda0*x[1] > -3 ? 1. : 0.)'
-filtre = Expression(filtre, Vmax=Vmax, t=0.0, lambda0=lambda0, c0=c0)
+filtre = Expression(filtre, epsilon=epsilon, Vmax=Vmax, t=0.0, lambda0=lambda0, c0=c0)
 
 #Saving parameters
 if (save==True):
@@ -135,7 +130,6 @@ H = FunctionSpace(mesh, 'CG', 1)
 Q = FunctionSpace(mesh, 'CG',2)
 E = MixedFunctionSpace([V, H])
 
-zeta0 = interpolate(zeta0, Q)
 D = interpolate(seabed,H)
 
 #Dirichlet BC
@@ -166,23 +160,35 @@ bc_Y_u = DirichletBC(E.sub(0).sub(1), 0.0, Y_SlipBoundary())
 bc_zeta = DirichletBC(Q, 0.0, Dirichlet_Boundary())
 
 bcs = [bc_X_u, bc_Y_u, bc_X_eta] 
+
+#Initialization of the shape
+movingObject = ' - (x[1]<3/lambda0 ? 1. : 0.)*(x[1]>0 ? 1. : 0.)*(lambda0*x[0]>-6 ? 1. : 0.)'\
+    +'*ad*0.5*0.5*(1. - tanh(0.5*lambda0*x[1]-2.))*(tanh(10*(1.-lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
+    +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' \
+    + ' - (x[1]>-3/lambda0 ? 1. : 0.)*(x[1]<=0 ? 1. : 0.)*(lambda0*x[0]>-6 ? 1. : 0.)'\
+    +'*ad*0.5*0.5*(1. + tanh(0.5*lambda0*x[1]+2.))*(tanh(10*(1. - lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
+    +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' 
+zeta0 = Expression(movingObject, ad=ad, c0=c0, hd=hd, lambda0=lambda0)
+zeta_initial = Function(Q)
+zeta_initial = interpolate(zeta0,Q)
+
 ###############DEFINITION OF THE WEAK FORMULATION############  
 w__ = Function(E)
-u__, eta__= split(w__)
+u__, eta__= w__.split()
 zeta__ = Function(Q)
 
 u__ = interpolate(u0, V)
 eta__ = interpolate(eta0, H)
-zeta__ = interpolate(zeta0, Q)
+zeta__ = zeta_initial
 U = interpolate(U, V)
 
 w_ = Function(E)
-u_, eta_ = split(w_)
+u_, eta_ = w_.split()
 zeta_ = Function(Q)
 
 u_ = interpolate(u0, V)
 eta_ = interpolate(eta0, H)
-zeta_ = interpolate(zeta0, Q)
+zeta_ = zeta_initial
 
 w = Function(E)
 u, eta = split(w)
@@ -197,6 +203,10 @@ u_alpha = (1.-alpha)*u_+ alpha*u
 eta_alpha = (1. - alpha)*eta_ + alpha*eta
 zeta_alpha = (1. - alpha)*zeta_ + alpha*zeta
 
+alpha2 = 1.
+U_alpha = (1. - alpha2)*U_ + alpha2*U
+U_t = (U - U_)/delta_t
+    
 zeta_t = (zeta-zeta_)/delta_t
 zeta_tt = (zeta-2.*zeta_+zeta__)/delta_t**2
 
@@ -212,25 +222,76 @@ F += 1./delta_t*(eta-eta_)*chi*dx + zeta_t*chi*dx \
 
 F += 0.1*h**(3./2.)*(inner(grad(u_alpha),grad(v)) + inner(grad(eta_alpha),grad(chi)))*dx
 
-A = 1./delta_t*(zeta-zeta_)*xi*dx + inner(grad(zeta_alpha),U)*xi*dx - 3*zeta*xi*dx #+ 1000000.0*(1-filtre)*zeta*xi*dx
-A += (1. - filtre)*h**(3./2.)*inner(grad(zeta_alpha),grad(xi))*dx
+A = zeta_t*xi*dx - epsilon*inner(grad(xi),U_alpha)*zeta_*dx - epsilon*delta_t/2.*inner(grad(xi),U_t)*zeta_alpha*dx \
+    + delta_t/2.*epsilon**2*inner(grad(xi),U_alpha)*inner(grad(zeta_alpha),U_alpha)*dx
+
+#First iteration to start the timestepper
+adj_start_timestep(time=0.0)
+U_.t = t
+U.t = t
+#U = interpolate(U_Object,V)
+solve(A==0, zeta, bc_zeta)
+zeta_.assign(zeta) 
+solve(F==0, w, bcs) #Solve the variational form
+w__.assign(w_)
+w_.assign(w)
+t += float(delta_t) 
 
 ###############################ITERATIONS##########################
 while (t <= end):  
+    adj_inc_timestep(time=t,finished=False)
+    #Solve the transport equation 
+    U.t = t
+    U_.t = t - delta_t
     solve(A==0, zeta, bc_zeta)
-    filtre.t = t
     zeta__.assign(zeta_)
-    zeta_.assign(zeta)   
+    zeta_.assign(zeta)  
+    #Solve the Peregrine system
     solve(F==0, w, bcs) #Solve the variational form
     w__.assign(w_)
-    w_.assign(w)
-    #eta_.assign(eta)
+   # w_.assign(w)
+    w_.vector()[:] = w.vector()
+    u_, eta_ = w_.split()
     t += float(delta_t) 
     if (ploting==True):
         plot(eta_,rescale=True, title = "Free Surface")
         plot(zeta_, mesh, rescale=True, title = "Seabed")
-        plot(filtre,mesh)
     if (save==True):
         fsfile << eta_ #Save heigth
-##############################END OF ITERATIONS#################################
+        
+adj_inc_timestep(time=t,finished=True)
+    ##############################END OF ITERATIONS#################################
+"""
+    return eta
+
+if __name__ == "__main__":
+    #Optimization
+    movingObject = ' - (x[1]<3/lambda0 ? 1. : 0.)*(x[1]>0 ? 1. : 0.)*(lambda0*x[0]>-6 ? 1. : 0.)'\
+        +'*ad*0.5*0.5*(1. - tanh(0.5*lambda0*x[1]-2.))*(tanh(10*(1.-lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
+        +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' \
+        + ' - (x[1]>-3/lambda0 ? 1. : 0.)*(x[1]<=0 ? 1. : 0.)*(lambda0*x[0]>-6 ? 1. : 0.)'\
+        +'*ad*0.5*0.5*(1. + tanh(0.5*lambda0*x[1]+2.))*(tanh(10*(1. - lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
+        +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' 
+    zeta0 = Expression(movingObject, ad=self.ad, c0=self.c0, hd=self.hd, lambda0=self.lambda0)
+    zeta_initial = Function(self.Q)
+    zeta_initial = interpolate(zeta0,self.Q)
+    
+    eta = main(zeta_initial)#,source,stab)
+    J = Functional(inner(zeta-zeta_c,zeta-zeta_c)*dx*dt[FINISH_TIME])
+
+    p_alpha = ScalarParameter(alpha)
+    #p_source = ScalarParameter(source)
+    #p_stab = ScalarParameter(stab)
+
+    Jhat = ReducedFunctional(J, p_alpha)#, p_source, p_stab])
+
+    #m_opt = minimize(Jhat, bounds=[[0.0, 0.0, 0.0],[1.0, 10., 10]], options = {'disp':True, 'maxiter':10})
+    m_opt = minimize(Jhat, bounds=(0.0, 1.0), options = {'disp':True, 'maxiter':10})
+    
+    print('alpha = ', float(m_opt))
+    print('alpha = ', float(m_opt[0]))
+    print('source = ', float(m_opt[1]))
+    print('stab = ', float(m_opt[2]))
+
+"""
 
