@@ -127,7 +127,7 @@ if (save==True):
 V = VectorFunctionSpace(mesh,'CG',1)
 #Height
 H = FunctionSpace(mesh, 'CG', 1)
-Q = FunctionSpace(mesh, 'CG',2)
+Q = FunctionSpace(mesh, 'CG',1)
 E = MixedFunctionSpace([V, H])
 
 D = interpolate(seabed,H)
@@ -173,6 +173,9 @@ zeta_initial = Function(Q)
 zeta_initial = interpolate(zeta0,Q)
 
 ###############DEFINITION OF THE WEAK FORMULATION############  
+zeta___ = Function(Q)
+zeta___ = zeta_initial
+
 w__ = Function(E)
 u__, eta__= w__.split()
 zeta__ = Function(Q)
@@ -201,26 +204,29 @@ xi = TestFunction(Q)
 alpha = 0.5
 u_alpha = (1.-alpha)*u_+ alpha*u
 eta_alpha = (1. - alpha)*eta_ + alpha*eta
-zeta_alpha = (1. - alpha)*zeta_ + alpha*zeta
+zeta_alpha = (1. - alpha)*zeta__ + alpha*zeta_
 
 alpha2 = 1.
 U_alpha = (1. - alpha2)*U_ + alpha2*U
 U_t = (U - U_)/delta_t
     
-zeta_t = (zeta-zeta_)/delta_t
-zeta_tt = (zeta-2.*zeta_+zeta__)/delta_t**2
+zeta__t = (zeta_-zeta__)/delta_t
+zeta__tt = (zeta_-2.*zeta__+zeta___)/delta_t**2
 
 F = 1./delta_t*inner(u-u_,v)*dx + epsilon*inner(grad(u_alpha)*u_alpha,v)*dx \
     - div(v)*eta_alpha*dx
 
 F += sigma**2.*1./delta_t*div((D + epsilon*zeta_alpha)*(u-u_))*div((D + epsilon*zeta_alpha)*v/2.)*dx \
     - sigma**2.*1./delta_t*div(u-u_)*div((D + epsilon*zeta_alpha)**2*v/6.)*dx \
-    + sigma**2.*zeta_tt*div((D + epsilon*zeta_alpha)*v/2.)*dx
+    + sigma**2.*zeta__tt*div((D + epsilon*zeta_alpha)*v/2.)*dx
 
-F += 1./delta_t*(eta-eta_)*chi*dx + zeta_t*chi*dx \
+F += 1./delta_t*(eta-eta_)*chi*dx + zeta__t*chi*dx \
     - (inner(u_alpha,grad(chi))*(epsilon*eta_alpha + D + epsilon*zeta_alpha))*dx 
 
 F += 0.1*h**(3./2.)*(inner(grad(u_alpha),grad(v)) + inner(grad(eta_alpha),grad(chi)))*dx
+
+zeta_t = (zeta-zeta_)/delta_t
+zeta_tt = (zeta-2.*zeta_+zeta__)/delta_t**2
 
 A = zeta_t*xi*dx - epsilon*inner(grad(xi),U_alpha)*zeta_*dx - epsilon*delta_t/2.*inner(grad(xi),U_t)*zeta_alpha*dx \
     + delta_t/2.*epsilon**2*inner(grad(xi),U_alpha)*inner(grad(zeta_alpha),U_alpha)*dx
@@ -241,17 +247,19 @@ t += float(delta_t)
 while (t <= end):  
     adj_inc_timestep(time=t,finished=False)
     #Solve the transport equation 
+    filtre.t=t
     U.t = t
     U_.t = t - delta_t
-    solve(A==0, zeta, bc_zeta)
+    solve(A==0, zeta)#, bc_zeta)
+    zeta___.assign(zeta__)
     zeta__.assign(zeta_)
-    zeta_.assign(zeta)  
+    zeta_.assign(zeta)
     #Solve the Peregrine system
     solve(F==0, w, bcs) #Solve the variational form
     w__.assign(w_)
-   # w_.assign(w)
-    w_.vector()[:] = w.vector()
-    u_, eta_ = w_.split()
+    w_.assign(w)
+    #w_.vector()[:] = w.vector()
+    #u_, eta_ = w_.split()
     t += float(delta_t) 
     if (ploting==True):
         plot(eta_,rescale=True, title = "Free Surface")
