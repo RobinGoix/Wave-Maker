@@ -241,7 +241,6 @@ def main(alpha):#,source,stab):
     U__.t = t
     U_.t = t
     U.t = t
-    #U = interpolate(U_Object,V)
     solve(A==0, zeta, bc_zeta)
     zeta_.assign(zeta) 
     zeta_comparison.t = t
@@ -264,6 +263,7 @@ def main(alpha):#,source,stab):
         if (ploting==True):
             plot(zeta_, mesh_zeta, rescale=True, title = "Moving Object")
             plot(zeta_c,mesh_zeta,rescale=True, title = "Comparions")
+            plot(U_,mesh)
             #plot(zeta-zeta_c,mesh_zeta,title=error)
         if (save==True):
             hfile << zeta_ #Save heigth
