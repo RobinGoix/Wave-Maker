@@ -24,9 +24,9 @@ sigma = h0/lambda0
 c0 = (h0*g)**(0.5)
 epsilon = a0/h0
 
-delta_t = 1.0 #timestep [s]
+delta_t = 0.25 #timestep [s]
 t = 0.0 #time initialization
-end = 2. #Final Time
+end = 1.0 #Final Time
 delta_t = delta_t*c0/lambda0 #Time step
 t = t*c0/lambda0 #Time initialization
 end = end*c0/lambda0 #Final time
@@ -108,6 +108,9 @@ U_ = Expression(('Vmax*(1.+4.*lambda0/c0*t/pow((lambda0/c0*t+0.05),2))*exp(-4./(
 #Corresponding trajectory
 traj = 'epsilon*c0*Vmax*lambda0/c0*t*exp(-4./(lambda0/c0*t + 0.05))'
 
+#Initial Conditions
+u0 = Expression(("0.0", "0.0"))
+eta0 = Expression("0.0")
 
 #Saving parameters
 if (save==True):
@@ -160,20 +163,25 @@ movingObject = ' - (x[1]<3/lambda0 ? 1. : 0.)*(x[1]>0 ? 1. : 0.)*(lambda0*x[0]>-
     + ' - (x[1]>-3/lambda0 ? 1. : 0.)*(x[1]<=0 ? 1. : 0.)*(lambda0*x[0]>-6 ? 1. : 0.)'\
     +'*ad*0.5*0.5*(1. + tanh(0.5*lambda0*x[1]+2.))*(tanh(10*(1. - lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
     +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' 
+zeta0 = Expression(movingObject, ad=ad, c0=c0, hd=hd, lambda0=lambda0)
 
-
-#Initial Conditions
-w0 = Expression(("0.0", "0.0", "0.0", movingObject), ad=ad, c0=c0, hd=hd, lambda0=lambda0)
-
-w_initial = project(w0,E)
+zeta_initial = interpolate(zeta0,Q)
 
 ###############DEFINITION OF THE WEAK FORMULATION############  
+#zeta___ = Function(Q, name="zeta_(n-2)")
+#zeta___.assign(zeta_initial)
 
-w__ = Function(w_initial, name="(u,eta,zeta)_(n-1)")
-u__, eta__, zeta__= split(w__)
+w__ = Function(E, name="(u,eta,zeta)_(n-1)")
+u__, eta__, zeta__= w__.split()
+u__ = interpolate(u0, V)
+eta__ = interpolate(eta0, H)
+zeta__ = zeta_initial
 
-w_ = Function(w_initial, name="(u,eta,zeta)_(n)")
-u_, eta_, zeta_= split(w_)
+w_ = Function(E, name="(u,eta,zeta)_(n)")
+u_, eta_, zeta_= w__.split()
+u_ = interpolate(u0, V)
+eta_ = interpolate(eta0, H)
+zeta_ = zeta_initial
 
 w = Function(E, name="(u,eta, zeta)_(n+1)")
 u, eta, zeta = split(w)
@@ -215,9 +223,9 @@ U_.t = t
 U.t = t
 solve(F==0, w, bcs)
 w__.assign(w_)
-u__, eta__, zeta__ = split(w__)
+u__, eta__, zeta__ = w__.split()
 w_.assign(w)
-u_, eta_, zeta_ = split(w_)
+u_, eta_, zeta_ = w_.split()
 
 t += float(delta_t) 
 
@@ -247,16 +255,23 @@ while (t <= end):
             VizZ.plot(zeta_)#, mesh, rescale=True, title = "Seabed")
     if (save==True):
         fsfile << eta_ #Save heigth
-        hfile << zeta_
         
 adj_inc_timestep(time=t,finished=True)
     ##############################END OF ITERATIONS#################################
 
 #    return eta
 #####################OPTIMIZATION############################
+#Call-back to vizualize the shape at each iteration
 adj_html("forward.html", "forward")
 adj_html("adjoint.html", "adjoint")
 success = replay_dolfin(tol=0.0, stop=True)
+
+
+
+controls = File("results/OptimalShape/shape_iterations.pvd")
+shape_viz = Function(Q, name="ShapeVisualisation")
+
+
 
 class OptDomain(SubDomain):
     def inside(self, x, on_boundary):
@@ -274,20 +289,21 @@ OptDomain().mark(domains, 1)
 
 dx_ = Measure("dx")[domains]
 
-J = Functional(-inner(w[2],w[2])*dx_(1)*dt[FINISH_TIME])
+J = Functional(-inner(eta,eta)*dx_(1)*dt[FINISH_TIME])
 
-shape = InitialConditionParameter(w_initial)
+shape = InitialConditionParameter(zeta_initial)
 
 #Define the bounds
-shape_ub = Function(E, name="Upper_Bound")
-shape_ub = Constant(('0.0', '0.0', '0.0', '0.0'))
-shape_lb = Function(E, name="Lower_Bound")
-shape_lb = project(Expression(('0.0', '0.0', '0.0', '- ad*(x[1]<3./lambda0 ? 1. : 0.)'\
+shape_ub = Function(Q, name="Upper_Bound")
+shape_ub = Constant('0.0')
+shape_lb = Function(Q, name="Lower_Bound")
+shape_lb = interpolate(Expression(('- ad*(x[1]<3./lambda0 ? 1. : 0.)'\
                 +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-6./lambda0 ? 1. : 0.)'\
-                +'*(x[0]<2./lambda0 ? 1. : 0.)'),ad=ad, lambda0=lambda0),E) 
+                +'*(x[0]<2./lambda0 ? 1. : 0.)'),ad=ad, lambda0=lambda0),Q) 
 
 Jhat = ReducedFunctional(J, shape)#, eval_cb=eval_cb)
 
 shape_opt = minimize(Jhat, bounds=(shape_lb, shape_ub), options = {'disp':True, 'maxiter':2})
+
 
 
