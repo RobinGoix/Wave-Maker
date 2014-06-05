@@ -4,12 +4,11 @@ Optimal shape design of a wave maker
 
 from dolfin import *
 from dolfin_adjoint import * 
-#import pyipopt
 
 #def main(zeta_initial):
-
-Nx = 75
-Ny = 55
+#set_log_active(False)
+Nx = 30
+Ny = 20
 
 x0 = -6.
 x1 = 60.
@@ -25,9 +24,9 @@ sigma = h0/lambda0
 c0 = (h0*g)**(0.5)
 epsilon = a0/h0
 
-delta_t = 0.06 #timestep [s]
+delta_t = 0.5 #timestep [s]
 t = 0.0 #time initialization
-end = 2.8 #Final Time
+end = 1.0 #Final Time
 delta_t = delta_t*c0/lambda0 #Time step
 t = t*c0/lambda0 #Time initialization
 end = end*c0/lambda0 #Final time
@@ -100,7 +99,7 @@ seabed = Expression(seabed, hd=hd, hb=hb,  lambda0=lambda0)
 
 #Trajectory of the object
 Vmax = (g*(hd*h0+ad*a0))**0.5 #Physical maximal velocity
-Vmax = 10*h0/a0*Vmax/c0 #Scaled maximal velocity
+Vmax = h0/a0*Vmax/c0 #Scaled maximal velocity
 #Time dependant velocity
 U = Expression(('Vmax*(1.+4.*lambda0/c0*t/pow((lambda0/c0*t+0.05),2))*exp(-4./(lambda0/c0*t + 0.05))','0.0'),\
                 Vmax=Vmax, lambda0=lambda0, c0=c0, t=0.0)
@@ -109,13 +108,6 @@ U_ = Expression(('Vmax*(1.+4.*lambda0/c0*t/pow((lambda0/c0*t+0.05),2))*exp(-4./(
 #Corresponding trajectory
 traj = 'epsilon*c0*Vmax*lambda0/c0*t*exp(-4./(lambda0/c0*t + 0.05))'
 
-#Initial Conditions
-u0 = Expression(("0.0", "0.0"))
-eta0 = Expression("0.0")
-
-filtre = '(lambda0*x[0] < 2 + '+traj+' ? 1. : 0.)*(lambda0*x[0] > -6 + '+traj+'? 1. : 0.)'\
-        +'*(lambda0*x[1] < 3 ? 1. : 0.)*(lambda0*x[1] > -3 ? 1. : 0.)'
-filtre = Expression(filtre, epsilon=epsilon, Vmax=Vmax, t=0.0, lambda0=lambda0, c0=c0)
 
 #Saving parameters
 if (save==True):
@@ -129,8 +121,6 @@ V = VectorFunctionSpace(mesh,'CG',1)
 H = FunctionSpace(mesh, 'CG', 1)
 Q = FunctionSpace(mesh, 'CG',1)
 E = MixedFunctionSpace([V, H])
-
-D = interpolate(seabed,H)
 
 #Dirichlet BC
 # No-slip boundary
@@ -170,29 +160,26 @@ movingObject = ' - (x[1]<3/lambda0 ? 1. : 0.)*(x[1]>0 ? 1. : 0.)*(lambda0*x[0]>-
     +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' 
 zeta0 = Expression(movingObject, ad=ad, c0=c0, hd=hd, lambda0=lambda0)
 
+zeta_initial = project(zeta0,Q)
+
+#Initial Conditions
+w0 = project(Expression(("0.0", "0.0", "0.0")),E)
+
 ###############DEFINITION OF THE WEAK FORMULATION############  
-zeta___ = Function(Q)
-zeta___ = interpolate(zeta0,Q)
+D = Function(project(seabed,H), name="Seabed")
 
-w__ = Function(E)
-u__, eta__= w__.split()
-zeta__ = Function(Q)
+zeta__ = Function(zeta_initial, name="zeta_(n-1)")
+#zeta__.assign(zeta_initial)
 
-u__ = interpolate(u0, V)
-eta__ = interpolate(eta0, H)
-zeta__ = interpolate(zeta0,Q)
+w_ = Function(w0, name="(u,eta)_(n)")
+u_, eta_ = split(w_)
 
-w_ = Function(E)
-u_, eta_ = w_.split()
-zeta_ = Function(Q)
+zeta_ = Function(zeta_initial, name="zeta_(n)")
+#zeta_.assign(zeta_initial)
 
-u_ = interpolate(u0, V)
-eta_ = interpolate(eta0, H)
-zeta_ = interpolate(zeta0,Q)
-
-w = Function(E)
+w = Function(E, name="(u,eta)_(n+1)")
 u, eta = split(w)
-zeta = Function(Q)
+zeta = Function(Q, name="zeta_(n+1)")
 
 v, chi = TestFunctions(E)
 xi = TestFunction(Q)
@@ -201,42 +188,41 @@ xi = TestFunction(Q)
 alpha = 0.5
 u_alpha = (1.-alpha)*u_+ alpha*u
 eta_alpha = (1. - alpha)*eta_ + alpha*eta
-zeta__alpha = (1. - alpha)*zeta__ + alpha*zeta_
+zeta_alpha = (1. - alpha)*zeta_ + alpha*zeta
 
 alpha2 = 1.
 U_alpha = (1. - alpha2)*U_ + alpha2*U
 U_t = (U - U_)/delta_t
     
-zeta__t = (zeta_ - zeta__)/delta_t
-zeta__tt = (zeta_ - 2.*zeta__ + zeta___)/delta_t**2
+zeta_t = (zeta - zeta_)/delta_t
+zeta_tt = (zeta - 2.*zeta_ + zeta__)/delta_t**2
 
 F = 1./delta_t*inner(u-u_,v)*dx + epsilon*inner(grad(u_alpha)*u_alpha,v)*dx \
     - div(v)*eta_alpha*dx
 
-F += sigma**2.*1./delta_t*div((D + epsilon*zeta__alpha)*(u-u_))*div((D + epsilon*zeta__alpha)*v/2.)*dx \
-    - sigma**2.*1./delta_t*div(u-u_)*div((D + epsilon*zeta__alpha)**2*v/6.)*dx \
-    + sigma**2.*zeta__tt*div((D + epsilon*zeta__alpha)*v/2.)*dx
+F += sigma**2.*1./delta_t*div((D + epsilon*zeta_alpha)*(u-u_))*div((D + epsilon*zeta_alpha)*v/2.)*dx \
+    - sigma**2.*1./delta_t*div(u-u_)*div((D + epsilon*zeta_alpha)**2*v/6.)*dx \
+    + sigma**2.*zeta_tt*div((D + epsilon*zeta_alpha)*v/2.)*dx
 
-F += 1./delta_t*(eta-eta_)*chi*dx + zeta__t*chi*dx \
-    - (inner(u_alpha,grad(chi))*(epsilon*eta_alpha + D + epsilon*zeta__alpha))*dx 
+F += 1./delta_t*(eta-eta_)*chi*dx + zeta_t*chi*dx \
+    - (inner(u_alpha,grad(chi))*(epsilon*eta_alpha + D + epsilon*zeta_alpha))*dx 
 
 F += 0.1*h**(3./2.)*(inner(grad(u_alpha),grad(v)) + inner(grad(eta_alpha),grad(chi)))*dx
-
-zeta_t = (zeta - zeta_)/delta_t
-zeta_alpha = (1. - alpha)*zeta_ + alpha*zeta
 
 A = zeta_t*xi*dx - epsilon*inner(grad(xi),U_alpha)*zeta_*dx - epsilon*delta_t/2.*inner(grad(xi),U_t)*zeta_alpha*dx \
     + delta_t/2.*epsilon**2*inner(grad(xi),U_alpha)*inner(grad(zeta_alpha),U_alpha)*dx
 
 #First iteration to start the timestepper
 adj_start_timestep(time=0.0)
+#Solve transport equation
 U_.t = t
 U.t = t
 solve(A==0, zeta, bc_zeta)
-zeta_.assign(zeta) 
-solve(F==0, w, bcs) #Solve the variational form
-w__.assign(w_)
-u__, eta_ = w__.split()
+
+#Solve Peregrine
+solve(F==0, w, bcs)
+zeta__.assign(zeta_)
+zeta_.assign(zeta)
 w_.assign(w)
 u_, eta_ = w_.split()
 
@@ -245,22 +231,22 @@ t += float(delta_t)
 ###############################ITERATIONS##########################
 while (t <= end):  
     adj_inc_timestep(time=t,finished=False)
+
     #Solve the transport equation 
-    #filtre.t=t
     U.t = t
     U_.t = max(t - delta_t, 0.0)
     solve(A==0, zeta, bc_zeta)
-    zeta___.assign(zeta__)
-    zeta__.assign(zeta_)
-    zeta_.assign(zeta)
     #Solve the Peregrine system
     solve(F==0, w, bcs) #Solve the variational form
-    w__.assign(w_)
-    u__, eta__ = w__.split()
     w_.assign(w)
-    u_, eta_ = w_.split()   
-    t += float(delta_t)
+    u_, eta_ = w_.split()  
     
+    zeta__.assign(zeta_)
+    zeta_.assign(zeta) 
+    
+    t += float(delta_t)
+    print(t)
+    #Plot everything
     if (ploting==True):
         if(t<=5*delta_t/2.):
             VizE = plot(eta_,rescale=True, title = "Free Surface")
@@ -272,37 +258,52 @@ while (t <= end):
         
 adj_inc_timestep(time=t,finished=True)
     ##############################END OF ITERATIONS#################################
-"""
-    return eta
 
-if __name__ == "__main__":
-    #Optimization
-    movingObject = ' - (x[1]<3/lambda0 ? 1. : 0.)*(x[1]>0 ? 1. : 0.)*(lambda0*x[0]>-6 ? 1. : 0.)'\
-        +'*ad*0.5*0.5*(1. - tanh(0.5*lambda0*x[1]-2.))*(tanh(10*(1.-lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
-        +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' \
-        + ' - (x[1]>-3/lambda0 ? 1. : 0.)*(x[1]<=0 ? 1. : 0.)*(lambda0*x[0]>-6 ? 1. : 0.)'\
-        +'*ad*0.5*0.5*(1. + tanh(0.5*lambda0*x[1]+2.))*(tanh(10*(1. - lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
-        +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' 
-    zeta0 = Expression(movingObject, ad=self.ad, c0=self.c0, hd=self.hd, lambda0=self.lambda0)
-    zeta_initial = Function(self.Q)
-    zeta_initial = interpolate(zeta0,self.Q)
+#    return eta
+#####################OPTIMIZATION############################
+#Call-back to vizualize the shape at each iteration
+adj_html("forward.html", "forward")
+adj_html("adjoint.html", "adjoint")
+success = replay_dolfin(tol=0.0, stop=True)
+
+controls = File("results/OptimalShape/shape_iterations.pvd")
+shape_viz = Function(Q, name="ShapeVisualisation")
+
+def eval_cb(shape):
+    shape_viz.assign(shape)
+    controls << shape_viz
+
+class OptDomain(SubDomain):
+    def inside(self, x, on_boundary):
+        X0 = 50./lambda0
+        X1 = 58./lambda0
+        Y0 = 4./lambda0
+        Y1 = 16./lambda0
+        
+        return x[0]>=X0 and x[0]<=X1 and x[1]>=Y0 and x[1]<=Y1
     
-    eta = main(zeta_initial)#,source,stab)
-    J = Functional(inner(zeta-zeta_c,zeta-zeta_c)*dx*dt[FINISH_TIME])
+#Mark the subdomain on which the wave is assessed
+domains = CellFunction("size_t", mesh)
+domains.set_all(0)
+OptDomain().mark(domains, 1)
 
-    p_alpha = ScalarParameter(alpha)
-    #p_source = ScalarParameter(source)
-    #p_stab = ScalarParameter(stab)
+dx_ = Measure("dx")[domains]
 
-    Jhat = ReducedFunctional(J, p_alpha)#, p_source, p_stab])
+J = Functional(-inner(eta,eta)*dx*dt[FINISH_TIME])
 
-    #m_opt = minimize(Jhat, bounds=[[0.0, 0.0, 0.0],[1.0, 10., 10]], options = {'disp':True, 'maxiter':10})
-    m_opt = minimize(Jhat, bounds=(0.0, 1.0), options = {'disp':True, 'maxiter':10})
-    
-    print('alpha = ', float(m_opt))
-    print('alpha = ', float(m_opt[0]))
-    print('source = ', float(m_opt[1]))
-    print('stab = ', float(m_opt[2]))
+shape = InitialConditionParameter(zeta_initial)
 
-"""
+#Define the bounds
+shape_ub = Function(Q, name="Upper_Bound")
+shape_ub = Constant('0.0')
+shape_lb = Function(Q, name="Lower_Bound")
+shape_lb = project(Expression(('- ad*(x[1]<3./lambda0 ? 1. : 0.)'\
+                +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-6./lambda0 ? 1. : 0.)'\
+                +'*(x[0]<2./lambda0 ? 1. : 0.)'),ad=ad, lambda0=lambda0),Q) 
+
+Jhat = ReducedFunctional(J, shape)#, eval_cb=eval_cb)
+
+shape_opt = minimize(Jhat)#, bounds=(shape_lb, shape_ub), options = {'disp':True, 'maxiter':2})
+
+
 
