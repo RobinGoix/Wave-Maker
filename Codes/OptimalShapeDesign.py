@@ -5,6 +5,7 @@ Optimal shape design of a wave maker
 from dolfin import *
 from dolfin_adjoint import * 
 import pyipopt
+import numpy
 
 set_log_active(False)
 Nx = 75
@@ -91,8 +92,8 @@ mesh = refine(mesh, cell_markers5)
 h = CellSize(mesh)
 
 #Other Parameters
-save = False
-ploting = True
+save = True
+ploting = False
 
 hd = 2. #Depth [m]
 hb = 0.3 #Depth at the boundaries [m]
@@ -120,8 +121,8 @@ traj = 'epsilon*c0*Vmax*lambda0/c0*t*exp(-4./(lambda0/c0*t + 0.05))'
 
 #Saving parameters
 if (save==True):
-    fsfile = File("results/Objectshape1/FS.pvd") #To save data in a file
-    hfile = File("results/Objectshape1/MB.pvd") #To save data in a file
+    fsfile = File("results/Objectshape2/FS.pvd") #To save data in a file
+    hfile = File("results/Objectshape2/MB.pvd") #To save data in a file
     
 #Define functions spaces
 #Velocity
@@ -166,7 +167,7 @@ def main(zeta_initial):
     delta_t = 0.03 #timestep [s]
     t = 0.0 #time initialization
     end = 2.8 #Final Time
-    #delta_t = delta_t*c0/lambda0 #Time step
+    delta_t = delta_t*c0/lambda0 #Time step
     t = t*c0/lambda0 #Time initialization
     #end = end*c0/lambda0 #Final time
     
@@ -273,7 +274,7 @@ if __name__ == "__main__":
     adj_html("adjoint.html", "adjoint")
 
     #Call-back to vizualize the shape at each iteration
-    controls = File("results/OptimalShape/shape_iterations.pvd")
+    controls = File("results/OptimalShape2/shape_iterations.pvd")
     shape_viz = Function(Q, name="ShapeVisualisation")
     J_values=[]
     def eval_cb(j, shape):
@@ -314,17 +315,20 @@ if __name__ == "__main__":
     J = Functional(-inner(eta,eta)*dx_(1)*dt[FINISH_TIME])
 
     shape = InitialConditionParameter("zeta_(n)")
-
-    #Define the bounds
+    
+    #Define the constraints
     shape_ub = Function(Q, name="Upper_Bound")
-    shape_ub = project(Expression('0.00001'),Q)
+    shape_ub.vector()[:] = 0
     shape_lb = Function(Q, name="Lower_Bound")
-    shape_lb = project(Expression(('(- ad*(x[1]<3./lambda0 ? 1. : 0.)'\
+
+    shape_lb = project(Expression(('(-ad*(x[1]<3./lambda0 ? 1. : 0.)'\
                     +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-4./lambda0 ? 1. : 0.)'\
                     +'*(x[0]<2./lambda0 ? 1. : 0.) < -0.5 ? - ad*(x[1]<3./lambda0 ? 1. : 0.)'\
                     +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-4./lambda0 ? 1. : 0.)'\
                     +'*(x[0]<2./lambda0 ? 1. : 0.) : 0 )'),ad=ad, lambda0=lambda0),Q) 
     
+    shape_lb.vector()[:] = numpy.rint(shape_lb.vector()[:])
+
     Jhat = ReducedFunctional(J, shape, eval_cb=eval_cb)
     
     jhat = ReducedFunctionalNumpy(Jhat)
@@ -332,7 +336,6 @@ if __name__ == "__main__":
     nlp = jhat.pyipopt_problem(bounds=(shape_lb.vector(), shape_ub.vector()))
     
     shape_opt = nlp.solve(full=False)
-    
 
 
 
