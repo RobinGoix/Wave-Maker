@@ -3,7 +3,7 @@ This algorithm aim at optimizing an underwater object shape to create the smalle
 """
 
 from dolfin import *
-#from dolfin_adjoint import * 
+from dolfin_adjoint import * 
 #import pyipopt
 
 def main(ad):  
@@ -153,56 +153,24 @@ if __name__ == "__main__":
     p1 = Constant(5.)  #Initialisation of the value to be optimized
     p2 = Constant(1.)
     ad = Constant(0.1)
-    #ad_new = Constant(1.)
-    w_ = main(ad)   #Corresponding solution of Peregrine
-    J = Functional(-1000000*inner(w_[2], w_[2])*dx*dt[FINISH_TIME])  #Cost function
-    #dJdad = compute_gradient(J, ScalarParameter(ad))    #Gradient of the cost function
-    m1 = ScalarParameter(ad)
-    #m2 = ScalarParameter(p2)
-    reduced_functional = ReducedFunctional(J, m1)
-    print('reduced_functional = ', type(reduced_functional))
-    #print('type([m1,m2]) = ', type([m1,m2]))
-    m_opt = minimize(reduced_functional, bounds=(0.0,0.5))
-    print('m_opt = ', float(m_opt))
+
+    w_ = main(ad)   #Corresponding solution of Peregrine  
+    shape = ScalarParameter(ad)
+
+    adj_html("forward.html", "forward")
+    adj_html("adjoint.html", "adjoint")
     
+    J = Functional(inner(w_[2],w_[2])*dx*dt[FINISH_TIME])
+    dJdshape = compute_gradient(J, shape, forget=False)
     
-    """
-    w_ = main(ad)   #Corresponding solution of Peregrine
-    mu = Constant(1000.) #Step to change ad
-    compteur = 0
+    Jshape = assemble(inner(w_[2],w_[2]))
     
-    while(float(mu) > 1.):
-        compteur += 1
-        ad = Constant(ad_new)
-        w_ = main(ad)
-        J = Functional(inner(w_[2], w_[2])*dx*dt[FINISH_TIME])  #Cost function
-        parameters["adjoint"]["stop_annotating"] = True # stop registering equations  
-        dJdad = compute_gradient(J, ScalarParameter(ad))    #Gradient of the cost function
-        Jad = assemble(inner(w_[2], w_[2])*dx)  # Compute the value of the cost function
-        
-        ad_new = Constant(ad - mu*dJdad)
-        w_new = main(ad_new)
-        Jad_new = assemble(inner(w_new[2], w_new[2])*dx)
-  
-        if(float(Jad_new) < float(Jad)):
-            mu = mu*2.
-        else:
-            while(float(Jad_new) > float(Jad)):
-                mu = mu/2.
-                ad_new = Constant(ad - mu*dJdad)
-                w_new = main(ad_new)
-                Jad_new = assemble(inner(w_new[2], w_new[2])*dx)
-        
-        print('compteur = ', compteur)       
-        print('mu = ', float(mu))
-        print('ad = ', float(ad))
-        print('dJdad = ', float(dJdad))
-        print('ad_new = ', float(ad))
-"""
-"""
+    #parameters["adjoint"]["stop_annotating"] = True # stop registering equations
+    
     def Jhat(ad): # the functional as a pure function of nu
         w_ = main(ad)
-        return assemble(inner(w_[2], w_[2])*dx)
-
-    conv_rate = taylor_test(Jhat, ScalarParameter(ad), Jad, dJdad)
-"""
+        return assemble(inner(w_[2],w_[2])*dx)
+    
+    conv_rate = taylor_test(Jhat, shape, Jshape, dJdshape)  
+    
+  
