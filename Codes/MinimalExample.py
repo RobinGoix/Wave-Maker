@@ -4,10 +4,11 @@ minimal example - dolfin adjoint
 
 from dolfin import *
 from dolfin_adjoint import * 
+#import pyipopt
 import numpy
 
-set_log_active(False)
-Nx = 50
+set_log_level(WARNING)
+Nx = 55
 Ny = 32
 
 x0 = -6.
@@ -85,9 +86,13 @@ mesh = refine(mesh, cell_markers5)
 h = CellSize(mesh)
 
 #Parameters
-save = True
+save = False
 ploting = False
 
+if (save==True):
+    fsfile = File("results/OptimalShape/Simulation/FS.pvd") #To save data in a file
+    hfile = File("results/OptimalShape/Simulation/MB.pvd") #To save data in a file
+    
 hd = 2. #Depth [m]
 hb = 0.3 #Depth at the boundaries [m]
 ad = 0.8 #Object's height
@@ -145,7 +150,7 @@ bc_zeta = DirichletBC(Q, 0.0, Dirichlet_Boundary())
 
 bcs = [bc_X_u, bc_Y_u, bc_X_eta] 
 
-def main(zeta_initial, annotate=True):    
+def main(zeta_initial, annotate=True, ploting=False):    
     delta_t = 0.06 #timestep [s]
     t = 0.0 #time initialization
     end = 2.8 #Final Time
@@ -235,7 +240,7 @@ def main(zeta_initial, annotate=True):
         t += float(delta_t)
         
         #Plot everything
-        if (ploting==True):
+        if (ploting==ploting):
             
             if(t<=5*delta_t/2.):
                 VizE = plot(eta_,rescale=True, title = "Free Surface")
@@ -254,16 +259,16 @@ def main(zeta_initial, annotate=True):
 
 if __name__ == "__main__":
     #Call-back to vizualize the shape at each iteration
-    controls = File("results/OptimalShape/shape_iterations_adjoint_method.pvd")
+    controls = File("results/OptimalShape/shape_iterations_adjoint_method_TNC_H1.pvd")
     shape_viz = Function(Q, name="ShapeVisualisation")
     J_values=[]
     def eval_cb(j, shape):
-        plot(shape)
+        #plot(shape)
         J_values.append(j)
         shape_viz.assign(shape)
         controls << shape_viz
         #Saving parameters for J_values
-        arrayname = 'results/OptimalShape/functional_values_adjoint_method.npy'
+        arrayname = 'results/OptimalShape/functional_values_adjoint_method_TNC_H1.npy'
         numpy.save(arrayname, J_values)
         
     #Mark the subdomain on which the wave is assessed
@@ -281,37 +286,42 @@ if __name__ == "__main__":
     OptDomain().mark(domains, 1)
     dx_ = Measure("dx")[domains]
     
+    #Define the bounds
+    shape_ub = Function(Q, name="Upper_Bound")
+    shape_ub = project(Expression(('(-ad*(x[1]<0. ? 1. : 0.)'\
+                    +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-1.5/lambda0 ? 1. : 0.)'\
+                    +'*(x[0]<1.5/lambda0 ? 1. : 0.) < -0.5 ? - ad*(x[1]<0. ? 1. : 0.)'\
+                    +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-1.5/lambda0 ? 1. : 0.)'\
+                    +'*(x[0]<2./lambda0 ? 1. : 0.) : 0 )'),ad=ad, lambda0=lambda0),Q)   
+    shape_ub.vector()[:] = numpy.rint(shape_ub.vector()[:]) 
+    shape_lb = Function(Q, name="Lower_Bound")    
+    shape_lb = project(Expression(('(-ad*(x[1]<3./lambda0 ? 1. : 0.)'\
+                    +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-3./lambda0 ? 1. : 0.)'\
+                    +'*(x[0]<1.5/lambda0 ? 1. : 0.) < -0.5 ? - ad*(x[1]<3./lambda0 ? 1. : 0.)'\
+                    +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-3./lambda0 ? 1. : 0.)'\
+                    +'*(x[0]<1.5/lambda0 ? 1. : 0.) : 0 )'),ad=ad, lambda0=lambda0),Q) 
+    shape_lb.vector()[:] = numpy.rint(shape_lb.vector()[:]) 
+    
     #Initialization of the shape
-    movingObject = ' - (x[1]<3/lambda0 ? 1. : 0.)*(x[1]>0 ? 1. : 0.)*(lambda0*x[0]>-4 ? 1. : 0.)'\
+    movingObject = '(x[1]<3/lambda0 ? 1. : 0.)*(x[1]>=0 ? 1. : 0.)*(lambda0*x[0]>-3 ? 1. : 0.)'\
         +'*ad*0.5*0.5*(1. - tanh(0.5*lambda0*x[1]-2.))*(tanh(10*(1.-lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
-        +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' \
-        + ' - (x[1]>-3/lambda0 ? 1. : 0.)*(x[1]<=0 ? 1. : 0.)*(lambda0*x[0]>-4 ? 1. : 0.)'\
-        +'*ad*0.5*0.5*(1. + tanh(0.5*lambda0*x[1]+2.))*(tanh(10*(1. - lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
-        +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5))) ' 
+        +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5)))' 
        
     zeta0 = Expression(movingObject, ad=ad, c0=c0, hd=hd, lambda0=lambda0)
     zeta_initial = project(zeta0,Q)
+    zeta_initial = project(zeta_initial*shape_lb + shape_ub,Q)
     #plot(zeta_initial, interactive=True)
     shape = InitialConditionParameter("zeta_(n)")
 
     #Computation of the functional
-    eta = main(zeta_initial)
-    J = Functional(-1000*inner(eta,eta)*dx_(1)*dt[FINISH_TIME])
-    
-    #Define the bounds
-    shape_ub = Function(Q, name="Upper_Bound")
-    shape_ub.vector()[:] = 0   
-    shape_lb = Function(Q, name="Lower_Bound")
-    shape_lb = project(Expression(('(-ad*(x[1]<3./lambda0 ? 1. : 0.)'\
-                    +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-4./lambda0 ? 1. : 0.)'\
-                    +'*(x[0]<2./lambda0 ? 1. : 0.) < -0.5 ? - ad*(x[1]<3./lambda0 ? 1. : 0.)'\
-                    +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-4./lambda0 ? 1. : 0.)'\
-                    +'*(x[0]<2./lambda0 ? 1. : 0.) : 0 )'),ad=ad, lambda0=lambda0),Q) 
-    shape_lb.vector()[:] = numpy.rint(shape_lb.vector()[:]) 
+    eta = main(zeta_initial, ploting=True)
+    J = Functional(-1000*(inner(eta,eta)+inner(grad(eta),grad(eta)))*dx_(1)*dt[FINISH_TIME])
     
     Jhat = ReducedFunctional(J, shape, eval_cb=eval_cb) 
     
-    shape_opt = minimize(Jhat, bounds=(shape_lb, shape_ub), options = {'disp':True})
+    #dolfin.parameters["optimization"]["test_gradient"] = True
+    
+    shape_opt = minimize(Jhat, bounds=(shape_lb, shape_ub), method = 'TNC', options = {'disp':True})
     
    #Verification
     """
@@ -322,11 +332,11 @@ if __name__ == "__main__":
     dJdshape = compute_gradient(J, shape, forget=False)
     plot(dJdshape, mesh, title="gradient")
    
-    Jshape = assemble(-inner(eta,eta)*dx_(1))
+    Jshape = assemble(-(inner(eta,eta)+inner(grad(eta),grad(eta)))*dx_(1))
         
     def Jhat(zeta_initial): # the functional as a pure function of nu
         eta = main(zeta_initial, False)
-        return assemble(-inner(eta,eta)*dx_(1))
+        return assemble(-(inner(eta,eta)+inner(grad(eta),grad(eta)))*dx_(1))
     
     #conv_rate = taylor_test(Jhat, shape, Jshape, dJdshape)#, seed=0.1)  
     interactive()
