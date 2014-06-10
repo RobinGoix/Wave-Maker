@@ -13,7 +13,8 @@ Nx = 35 #Default 35
 Ny = 22 #Default 22
 delta_t = 0.03 #[s] Default 0.03 
 dt_scaled = True #Put False and delta_t = 0.5 to run a Test
-Opt_Method = 'L-BFGS-B' #Default L-BFGS-B. Optimization algorithm: L-BFGS-B, TNC or pyipopt  
+Opt_Method = 'L-BFGS-B' #Default L-BFGS-B. Optimization algorithm: L-BFGS-B, TNC or pyipopt 
+#For more details, see http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize 
 Norme = 'H1' #Default H1. Optimization criteria: L2 or H1
 save = False #Save the (eta,zeta)
 save_opt = True #Save the optimization results
