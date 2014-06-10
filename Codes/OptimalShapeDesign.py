@@ -1,16 +1,38 @@
 """
-minimal example - dolfin adjoint
+Solve an optimization problem for an underwater moving object which create a waves
 """
 
 from dolfin import *
 from dolfin_adjoint import * 
-#import pyipopt
+import pyipopt
 import numpy
 
-set_log_level(WARNING)
-Nx = 55
-Ny = 32
+#Parameters
+set_log_level(WARNING) #Output
+Nx = 35 #Default 35
+Ny = 22 #Default 22
+delta_t = 0.03 #[s] Default 0.03 
+dt_scaled = True #Put False and delta_t = 0.5 to run a Test
+Opt_Method = 'L-BFGS-B' #Default L-BFGS-B. Optimization algorithm: L-BFGS-B, TNC or pyipopt  
+Norme = 'H1' #Default H1. Optimization criteria: L2 or H1
+save = False #Save the (eta,zeta)
+save_opt = True #Save the optimization results
+ploting = False
+transport_order = 2 #CG finite element degree for the transport equation (1 or 2).
+Norme_scaling = 10. #Scale the functionnal to avoid to low values
+maxiter = None #Maximal number of optimization iterations
+Verification = False #Taylor test to check the convergence at each iteration
 
+name = 'Norme' + str(Norme_scaling)+ '*' + str(Norme) \
+        + '_Opt_' + str(Opt_Method)\
+        + 'Nx' + str(Nx) \
+        + 'Ny' + str(Ny) \
+        + 'delta_t' + str(delta_t) \
+        + 'P' + str(transport_order)
+if (save==True):
+    fsfile = File('results/OptimalShape/Simulation/FS_' + name + '.pvd') #To save data in a file
+    hfile = File('results/OptimalShape/Simulation/MB_' + name + '.pvd') #To save data in a file
+    
 x0 = -6.
 x1 = 60.
 y0 = -25.
@@ -33,6 +55,16 @@ y1 = y1/lambda0
 mesh = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
 
 #Refine the mesh along the object's trajectory
+cell_markers0 = CellFunction("bool", mesh)
+cell_markers0.set_all(False)
+
+for cell in cells(mesh):
+    p = cell.midpoint()
+    if p.y() > -5./lambda0:
+        cell_markers0[cell] = True
+    
+mesh = refine(mesh, cell_markers0)
+
 cell_markers = CellFunction("bool", mesh)
 cell_markers.set_all(False)
 
@@ -83,15 +115,17 @@ for cell in cells(mesh):
     
 mesh = refine(mesh, cell_markers5)
 
+cell_markers6 = CellFunction("bool", mesh)
+cell_markers6.set_all(False)
+
+for cell in cells(mesh):
+    p = cell.midpoint()
+    if p.y() > -1./lambda0 and p.y() < 3./lambda0:
+        cell_markers6[cell] = True
+    
+mesh = refine(mesh, cell_markers6)
+
 h = CellSize(mesh)
-
-#Parameters
-save = False
-ploting = False
-
-if (save==True):
-    fsfile = File("results/OptimalShape/Simulation/FS.pvd") #To save data in a file
-    hfile = File("results/OptimalShape/Simulation/MB.pvd") #To save data in a file
     
 hd = 2. #Depth [m]
 hb = 0.3 #Depth at the boundaries [m]
@@ -118,7 +152,7 @@ U_obj = Expression(('Vmax*(1.+4.*lambda0/c0*t/pow((lambda0/c0*t+0.05),2))*exp(-4
 V = VectorFunctionSpace(mesh,'CG',1)
 #Height
 H = FunctionSpace(mesh, 'CG', 1)
-Q = FunctionSpace(mesh, 'CG',1)
+Q = FunctionSpace(mesh, 'CG', transport_order)
 E = MixedFunctionSpace([V, H])
 
 #Dirichlet BC
@@ -150,13 +184,12 @@ bc_zeta = DirichletBC(Q, 0.0, Dirichlet_Boundary())
 
 bcs = [bc_X_u, bc_Y_u, bc_X_eta] 
 
-def main(zeta_initial, annotate=True, ploting=False):    
-    delta_t = 0.06 #timestep [s]
+def main(zeta_initial, delta_t, annotate=True, ploting=False):
     t = 0.0 #time initialization
     end = 2.8 #Final Time
-    delta_t = delta_t*c0/lambda0 #Time step
+    if(dt_scaled):
+        delta_t = delta_t*c0/lambda0 #Time step
     t = t*c0/lambda0 #Time initialization
-    #end = end*c0/lambda0 #Final time
     
     #Initial Conditions
     #Trajectory of the object
@@ -240,17 +273,15 @@ def main(zeta_initial, annotate=True, ploting=False):
         t += float(delta_t)
         
         #Plot everything
-        if (ploting==ploting):
-            
+        if (ploting):           
             if(t<=5*delta_t/2.):
                 VizE = plot(eta_,rescale=True, title = "Free Surface")
             else:
-                VizE.plot(eta_)#,rescale=True, title = "Free Surface")
-            
-            plot(zeta_, mesh, rescale=True, title = "Seabed")
+                VizE.plot(eta_)#,rescale=True, title = "Free Surface")            
+            plot(zeta_, mesh, rescale=False, title = "Seabed")
         if (save==True):
             fsfile << eta_ #Save heigth
-            
+            hfile << zeta_
     adj_inc_timestep(time=t,finished=True)
         ##############################END OF ITERATIONS#################################
 
@@ -258,19 +289,21 @@ def main(zeta_initial, annotate=True, ploting=False):
 #####################OPTIMIZATION############################
 
 if __name__ == "__main__":
-    #Call-back to vizualize the shape at each iteration
-    controls = File("results/OptimalShape/shape_iterations_adjoint_method_TNC_H1.pvd")
-    shape_viz = Function(Q, name="ShapeVisualisation")
-    J_values=[]
-    def eval_cb(j, shape):
-        #plot(shape)
-        J_values.append(j)
-        shape_viz.assign(shape)
-        controls << shape_viz
-        #Saving parameters for J_values
-        arrayname = 'results/OptimalShape/functional_values_adjoint_method_TNC_H1.npy'
-        numpy.save(arrayname, J_values)
-        
+    if (save_opt):
+        #Call-back to vizualize the shape and save the functional value at each iteration
+        controls = File('results/OptimalShape/Shape_' + name + '.pvd')
+        shape_viz = Function(Q, name="ShapeVisualisation")
+        J_values=[]
+        def eval_cb(j, shape):
+            J_values.append(j)
+            shape_viz.assign(shape)
+            controls << shape_viz
+            #Saving parameters for J_values
+            arrayname = 'results/OptimalShape/Functional_' + name + '.npy'
+            numpy.save(arrayname, J_values)
+    else:
+        eval_cb = None
+    
     #Mark the subdomain on which the wave is assessed
     class OptDomain(SubDomain):
         def inside(self, x, on_boundary):
@@ -278,7 +311,7 @@ if __name__ == "__main__":
             X1 = 58./lambda0
             Y0 = 4./lambda0
             Y1 = 16./lambda0
-            
+
             return x[0]>=X0 and x[0]<=X1 and x[1]>=Y0 and x[1]<=Y1
         
     domains = CellFunction("size_t", mesh)
@@ -286,13 +319,13 @@ if __name__ == "__main__":
     OptDomain().mark(domains, 1)
     dx_ = Measure("dx")[domains]
     
-    #Define the bounds
+    #Define the bounds for the optimization
     shape_ub = Function(Q, name="Upper_Bound")
     shape_ub = project(Expression(('(-ad*(x[1]<0. ? 1. : 0.)'\
                     +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-1.5/lambda0 ? 1. : 0.)'\
                     +'*(x[0]<1.5/lambda0 ? 1. : 0.) < -0.5 ? - ad*(x[1]<0. ? 1. : 0.)'\
                     +'*(x[1]>-3./lambda0 ? 1. : 0.)*(x[0]>-1.5/lambda0 ? 1. : 0.)'\
-                    +'*(x[0]<2./lambda0 ? 1. : 0.) : 0 )'),ad=ad, lambda0=lambda0),Q)   
+                    +'*(x[0]<2./lambda0 ? 1. : 0.) : 0 )'), ad=ad, lambda0=lambda0),Q)   
     shape_ub.vector()[:] = numpy.rint(shape_ub.vector()[:]) 
     shape_lb = Function(Q, name="Lower_Bound")    
     shape_lb = project(Expression(('(-ad*(x[1]<3./lambda0 ? 1. : 0.)'\
@@ -305,25 +338,31 @@ if __name__ == "__main__":
     #Initialization of the shape
     movingObject = '(x[1]<3/lambda0 ? 1. : 0.)*(x[1]>=0 ? 1. : 0.)*(lambda0*x[0]>-3 ? 1. : 0.)'\
         +'*ad*0.5*0.5*(1. - tanh(0.5*lambda0*x[1]-2.))*(tanh(10*(1.-lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
-        +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5)))' 
-       
+        +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5)))'        
     zeta0 = Expression(movingObject, ad=ad, c0=c0, hd=hd, lambda0=lambda0)
     zeta_initial = project(zeta0,Q)
-    zeta_initial = project(zeta_initial*shape_lb + shape_ub,Q)
-    #plot(zeta_initial, interactive=True)
+    zeta_initial = project(zeta_initial*shape_lb + 0.9*shape_ub,Q)
     shape = InitialConditionParameter("zeta_(n)")
 
     #Computation of the functional
-    eta = main(zeta_initial, ploting=True)
-    J = Functional(-1000*(inner(eta,eta)+inner(grad(eta),grad(eta)))*dx_(1)*dt[FINISH_TIME])
+    eta = main(zeta_initial, delta_t, ploting=ploting)
+    if(Norme=='L2'):
+        J = Functional(-Norme_scaling*inner(eta,eta)*dx_(1)*dt[FINISH_TIME])
+    else:
+        J = Functional(-Norme_scaling*(inner(eta,eta)+inner(grad(eta),grad(eta)))*dx_(1)*dt[FINISH_TIME])
     
     Jhat = ReducedFunctional(J, shape, eval_cb=eval_cb) 
+
+    dolfin.parameters["optimization"]["test_gradient"] = Verification
     
-    #dolfin.parameters["optimization"]["test_gradient"] = True
+    if(Opt_Method=='Pyipopt'):
+        jhat = ReducedFunctionalNumpy(Jhat)
+        nlp = jhat.pyipopt_problem(bounds=(shape_lb.vector(), shape_ub.vector()))
+        shape_opt = nlp.solve(full=False)        
+    else: 
+        shape_opt = minimize(Jhat, bounds=(shape_lb, shape_ub), method = Opt_Method, options = {'maxiter': maxiter, 'disp':True})
     
-    shape_opt = minimize(Jhat, bounds=(shape_lb, shape_ub), method = 'TNC', options = {'disp':True})
-    
-   #Verification
+   #Debuging
     """
     success = replay_dolfin(tol=0.0, stop=True)
     adj_html("forward.html", "forward")
@@ -339,5 +378,4 @@ if __name__ == "__main__":
         return assemble(-(inner(eta,eta)+inner(grad(eta),grad(eta)))*dx_(1))
     
     #conv_rate = taylor_test(Jhat, shape, Jshape, dJdshape)#, seed=0.1)  
-    interactive()
     """
