@@ -11,9 +11,9 @@ import numpy
 set_log_level(WARNING) #Output
 Nx = 35 #Default 35
 Ny = 22 #Default 22
-delta_t = 0.03 #[s] Default 0.03 
+delta_t = 0.05 #[s] Default 0.03 
 dt_scaled = True #Put False and delta_t = 0.5 to run a Test
-Opt_Method = 'L-BFGS-B' #Default L-BFGS-B. Optimization algorithm: L-BFGS-B, TNC or pyipopt 
+Opt_Method = 'TNC' #Default L-BFGS-B. Optimization algorithm: L-BFGS-B, TNC or pyipopt 
 #For more details, see http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize 
 Norme = 'H1' #Default H1. Optimization criteria: L2 or H1
 save = False #Save the (eta,zeta)
@@ -356,7 +356,7 @@ if __name__ == "__main__":
 
     dolfin.parameters["optimization"]["test_gradient"] = Verification
     
-    if(Opt_Method=='Pyipopt'):
+    if(Opt_Method=='pyipopt'):
         jhat = ReducedFunctionalNumpy(Jhat)
         nlp = jhat.pyipopt_problem(bounds=(shape_lb.vector(), shape_ub.vector()))
         shape_opt = nlp.solve(full=False)        
