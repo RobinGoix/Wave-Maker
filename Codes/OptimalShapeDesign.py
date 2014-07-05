@@ -1,5 +1,7 @@
 """
-Solve an optimization problem for an underwater moving object which create a waves
+Solve an optimization problem for an underwater moving object 
+which create a waves, using the dimensionless Peregrine system
+and the transport equation to move the object.
 """
 
 from dolfin import *

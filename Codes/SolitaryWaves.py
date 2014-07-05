@@ -1,5 +1,7 @@
 """
-This code solves the Boussinesq System derived by Peregrine for a seabed of constant depth with a moving object.
+This code solves the Boussinesq System derived by Peregrine 
+for a seabed of constant depth with a soliton solution as initial 
+condition.
 
 """
 import scipy.integrate as si

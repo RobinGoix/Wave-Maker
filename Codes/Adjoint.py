@@ -10,8 +10,8 @@ global x1; x1 = 60.
 global y0; y0 = -25.
 global y1; y1 = 25.
  
-Nx = 35 #Default 35
-Ny = 22 #Default 22
+Nx = 10 #Default 35
+Ny = 5 #Default 22
 
 #Scaling parameters
 global g; g = 9.8
@@ -34,7 +34,6 @@ y0 = y0/lambda0
 y1 = y1/lambda0
 
 global mesh; mesh = RectangleMesh(x0,y0,x1,y1,Nx,Ny)
-plot(mesh, interactive = True)
 
 #Refine the mesh along the object's trajectory
 cell_markers0 = CellFunction("bool", mesh)
@@ -74,13 +73,11 @@ global V; V = VectorFunctionSpace(mesh,'CG',2)
 #Height
 global H; H = FunctionSpace(mesh, 'CG', 1)
 global E; E = MixedFunctionSpace([V, H])
+#Object
+global Z; Z = FunctionSpace(mesh, 'CG', 1)
+
 
 #Shape of the seabed
-seabed = 'hd - (hd-hb)/21.*(x[1]>4./lambda0 ? 1. : 0.)*(lambda0*x[1]-4.)' \
-        + '+ (hd-hb)/21.*(x[1]<(-4./lambda0) ? 1. : 0.)*(lambda0*x[1]+4.)'
-seabed = Expression(seabed, hd=hd, hb=hb, lambda0=lambda0) 
-D = Function(project(seabed,H), name="Seabed")
-
 hd = 2. #Depth [m]
 hb = 0.3 #Depth at the boundaries [m]
 ad = 0.8 #Object's height
@@ -88,6 +85,13 @@ ad = 0.8 #Object's height
 hd = hd/h0 #depth
 ad = ad/a0 #Object's height
 hb = hb/h0  
+
+seabed = 'hd - (hd-hb)/21.*(x[1]>4./lambda0 ? 1. : 0.)*(lambda0*x[1]-4.)' \
+        + '+ (hd-hb)/21.*(x[1]<(-4./lambda0) ? 1. : 0.)*(lambda0*x[1]+4.)'
+seabed = Expression(seabed, hd=hd, hb=hb, lambda0=lambda0) 
+D = Function(project(seabed,H), name="Seabed")
+
+
 
 #Trajectory of the object
 Vmax = (g*(hd*h0+ad*a0))**0.5 #Physical maximal velocity
@@ -119,79 +123,7 @@ bc_X_u = DirichletBC(E.sub(0), Expression(("0.0","0.0")), VelocityStream_Boundar
 bc_X_eta = DirichletBC(E.sub(1), 0.0, Entry_Boundary())
 bc_Y_u = DirichletBC(E.sub(0).sub(1), 0.0, Y_SlipBoundary())
 
-bc_zeta = DirichletBC(Q, 0.0, Dirichlet_Boundary())
-
 global bcs; bcs = [bc_X_u, bc_Y_u, bc_X_eta] 
-
-mu_min = 0.00001 #Tolerance for the step
-max_iter = 30 #Maximal number of iterations
-counter = 0 #Initialize the iteration's counter
-
-controls = File('results/OptimalShape/Shape.pvd')
-shape_viz = Function(Q, name="ShapeVisualisation")
-J_values=[]
-def eval_cb(j, shape):
-    '''
-    This call-back function is called at each optimization iteration
-    in order to store the shape and the functionnal values
-    '''
-    J_values.append(j)
-    shape_viz.assign(shape)
-    controls << shape_viz
-    #Saving parameters for J_values
-    arrayname = 'results/OptimalShape/Functional.npy'
-    numpy.save(arrayname, J_values) #Save the array
-
-#Initialization of the step by one gradient iteration
-'''
-So as to start with a coherent step mu, we do a first 
-optimization iteration and use the maximal value of the computed
-gradient to define that initial step.
-'''
-U, Eta, Zeta, J = forward(zeta0)
-eval_cb(J, zeta0)
-Va, Xi = adjoint(U, Eta, Zeta)
-dJdzeta0 = gradient(Zeta, U, Eta, Va, Xi)
-mu = 0.1/abs(dJdzeta0.vector()).max() 
-zeta0_new = zeta0 + mu*dJdzeta0
-U_new, Eta_new, Zeta_new, J_new = forward(zeta0_new)
-
-if(J_new > J):
-        mu = 1.5*mu
-else:
-    while(J_new < J and float(mu) > mu_min):
-        mu = mu/2.
-        zeta0_new = zeta0 + mu*dJdzeta0
-        U_new, Eta_new, Zeta_new, J_new = forward(zeta0_new)
-        
-zeta0.assign(zeta0_new)
-U, Eta, Zeta, J = U_new, Eta_new, Zeta_new, J_new
-eval_cb(J, zeta0)
-
-#################OPTIMIZATION ITERATIONS########################
-while(float(mu) > mu_min and counter < max_iter):
-    counter += 1 #increment the iteration counter
-    Va, Xi = adjoint(U, Eta, Zeta)
-    dJdzeta0 = gradient(Zeta, U, Eta, Va, Xi)      
-    zeta0_new = zeta0 + mu*dJdzeta0
-    U_new, Eta_new, Zeta_new, J_new = forward(zeta0_new)
-    
-    if(J_new > J):
-        '''
-        If the functional evaluated is bigger, we continue the 
-        maximisation with a bigger step mu.
-        '''
-        mu = 1.5*mu
-    else: #Otherwise we decrease the step until the functional is bigger
-        while(J_new < J and float(mu) > mu_min):
-            mu = mu/2.
-            zeta0_new = zeta0 + mu*dJdzeta0
-            U_new, Eta_new, Zeta_new, J_new = forward(zeta0_new)
-            
-    zeta0.assign(zeta0_new)
-    U, Eta, Zeta, J = U_new, Eta_new, Zeta_new, J_new
-    eval_cb(J, zeta0)
-
 
 def forward(zeta0):
     """
@@ -200,26 +132,22 @@ def forward(zeta0):
     the forward problem (U, Eta, Zeta) at each timestep
     """ 
     #Create the array of the object's positions
-    Zeta = [translate(E.sub(0),zeta0,Traj[k]) for k in range(0,N-1)]
-    plot(Zeta[100], mesh, interactive=True)
-    
+    Zeta = [translate(Z,zeta0,Traj[k]) for k in range(0,N-1)]
     
     #Initial Conditions
     w0 = project(Expression(("0.0", "0.0", "0.0")),E)
     ###############DEFINITION OF THE WEAK FORMULATION############  
-    zeta__ = Function(zeta_initial, name="zeta_(n-1)", annotate=annotate)
+    zeta__ = Function(zeta_initial, name="zeta_(n-1)")
 
-    w_ = Function(w0, name="(u,eta)_(n)", annotate=annotate)
+    w_ = Function(w0, name="(u,eta)_(n)")
     u_, eta_ = split(w_)
 
-    zeta_ = Function(zeta_initial, name="zeta_(n)", annotate=annotate)
+    zeta_ = Function(zeta0, name="zeta_(n)")
 
-    w = Function(E, name="(u,eta)_(n+1)", annotate=annotate)
+    w = Function(E, name="(u,eta)_(n+1)")
     u, eta = split(w)
-    zeta = Function(Q, name="zeta_(n+1)", annotate=annotate)
 
     v, chi = TestFunctions(E)
-    xi = TestFunction(Q)
     
     #Time stepping methode
     alpha = 0.5
@@ -407,7 +335,8 @@ def translate(Q, h, fx):
     y = numpy.array(mesh.coordinates()[:,1])
     x_min = x.min() #Define a boundary so that our object stays in the mesh
     x_max = x.max()
-    vertex_to_dof = Q.dofmap().vertex_to_dof_map(mesh)
+    #vertex_to_dof = Q.dofmap().vertex_to_dof_map(mesh)
+    vertex_to_dof = dof_to_vertex_map(Q)
     x = x[vertex_to_dof]
     y = y[vertex_to_dof]
     for i in range(0,len(x)):
@@ -415,9 +344,85 @@ def translate(Q, h, fx):
         x_fx = min(max(x[i] + fx,x_min),x_max) 
         point = numpy.array([x_fx, y[i]])#New coordinates after motion
         h_fx.vector()[i] = h(point) 
-    
+        plot(h_fx,mesh, interactive=True)
     
     return h_fx
     
     
+mu_min = 0.00001 #Tolerance for the step
+max_iter = 30 #Maximal number of iterations
+counter = 0 #Initialize the iteration's counter
+
+#Initialization of the shape
+movingObject = '(x[1]<3/lambda0 ? 1. : 0.)*(x[1]>=0 ? 1. : 0.)*(lambda0*x[0]>-3 ? 1. : 0.)'\
+    +'*ad*0.5*0.5*(1. - tanh(0.5*lambda0*x[1]-2.))*(tanh(10*(1.-lambda0*x[0]-pow(lambda0*x[1],2)/5))'\
+    +'+ tanh(2*(lambda0*x[0]+pow(lambda0*x[1],2)/5 + 0.5)))'        
+zeta0 = Expression(movingObject, ad=ad, c0=c0, hd=hd, lambda0=lambda0)
+zeta0 = project(zeta0,H)
+plot(zeta0, interactive=True)
+controls = File('results/OptimalShape/Shape.pvd')
+shape_viz = Function(H, name="ShapeVisualisation")
+J_values=[]
+def eval_cb(j, shape):
+    '''
+    This call-back function is called at each optimization iteration
+    in order to store the shape and the functionnal values
+    '''
+    J_values.append(j)
+    shape_viz.assign(shape)
+    controls << shape_viz
+    #Saving parameters for J_values
+    arrayname = 'results/OptimalShape/Functional.npy'
+    numpy.save(arrayname, J_values) #Save the array
+
+#Initialization of the step by one gradient iteration
+'''
+So as to start with a coherent step mu, we do a first 
+optimization iteration and use the maximal value of the computed
+gradient to define that initial step.
+'''
+U, Eta, Zeta, J = forward(zeta0)
+eval_cb(J, zeta0)
+Va, Xi = adjoint(U, Eta, Zeta)
+dJdzeta0 = gradient(Zeta, U, Eta, Va, Xi)
+mu = 0.1/abs(dJdzeta0.vector()).max() 
+zeta0_new = zeta0 + mu*dJdzeta0
+U_new, Eta_new, Zeta_new, J_new = forward(zeta0_new)
+
+if(J_new > J):
+        mu = 1.5*mu
+else:
+    while(J_new < J and float(mu) > mu_min):
+        mu = mu/2.
+        zeta0_new = zeta0 + mu*dJdzeta0
+        U_new, Eta_new, Zeta_new, J_new = forward(zeta0_new)
+        
+zeta0.assign(zeta0_new)
+U, Eta, Zeta, J = U_new, Eta_new, Zeta_new, J_new
+eval_cb(J, zeta0)
+
+#################OPTIMIZATION ITERATIONS########################
+while(float(mu) > mu_min and counter < max_iter):
+    counter += 1 #increment the iteration counter
+    Va, Xi = adjoint(U, Eta, Zeta)
+    dJdzeta0 = gradient(Zeta, U, Eta, Va, Xi)      
+    zeta0_new = zeta0 + mu*dJdzeta0
+    U_new, Eta_new, Zeta_new, J_new = forward(zeta0_new)
     
+    if(J_new > J):
+        '''
+        If the functional evaluated is bigger, we continue the 
+        maximisation with a bigger step mu.
+        '''
+        mu = 1.5*mu
+    else: #Otherwise we decrease the step until the functional is bigger
+        while(J_new < J and float(mu) > mu_min):
+            mu = mu/2.
+            zeta0_new = zeta0 + mu*dJdzeta0
+            U_new, Eta_new, Zeta_new, J_new = forward(zeta0_new)
+            
+    zeta0.assign(zeta0_new)
+    U, Eta, Zeta, J = U_new, Eta_new, Zeta_new, J_new
+    eval_cb(J, zeta0)
+
+
